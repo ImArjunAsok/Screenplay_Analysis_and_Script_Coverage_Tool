@@ -1,1 +1,2 @@
 # AI-Powered Screenplay Analysis and Script Coverage Tool
+An AI-powered full-stack web application that automates professional screenplay analysis and script coverage using Natural Language Processing (NLP) and Machine Learning (ML). The platform accepts screenplays in PDF and Final Draft (.fdx) formats, extracts structured screenplay elements, and generates a comprehensive coverage report similar to what a professional script reader would produce.
