@@ -1,0 +1,14 @@
+{
+  "total_scripts": 92,
+  "clean": 74,
+  "review": 10,
+  "excluded": 8,
+  "included_in_corpus": 84,
+  "exclusion_reasons": {
+    "indent_fallback_used": 7,
+    "bare_heading_fallback_used": 13,
+    "no_scenes_found": 4,
+    "not_standard_screenplay_format": 4,
+    "suspiciously_few_scenes": 4
+  }
+}

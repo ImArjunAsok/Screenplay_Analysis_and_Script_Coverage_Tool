@@ -1,0 +1,85 @@
+title,file,cue_character_count,ner_person_count,matched_count,match_rate
+10 Things I Hate About You,10 Things I Hate About You.txt,19,89,15,0.789
+12 and Holding,12 and Holding.txt,18,89,14,0.778
+12 Monkeys,12 Monkeys.txt,56,107,15,0.268
+12 Years a Slave,12 Years a Slave.txt,44,127,35,0.795
+12,12.txt,33,64,10,0.303
+127_Hours,127_Hours.txt,10,68,8,0.8
+1492_ Conquest of Paradise,1492_ Conquest of Paradise.txt,29,53,13,0.448
+15 Minutes,15 Minutes.txt,36,118,21,0.583
+17 Again,17 Again.txt,24,124,20,0.833
+187,187.txt,24,160,18,0.75
+2001_ A Space Odyssey,2001_ A Space Odyssey.txt,32,63,18,0.562
+2012,2012.txt,53,100,28,0.528
+20th Century Women,20th Century Women.txt,13,103,8,0.615
+25th Hour,25th Hour.txt,40,119,27,0.675
+28_Days_Later,28_Days_Later.txt,21,47,19,0.905
+30 Minutes or Less,30 Minutes or Less.txt,15,71,12,0.8
+42,42.txt,53,196,34,0.642
+44 Inch Chest,44 Inch Chest.txt,17,111,12,0.706
+48 Hrs.,48 Hrs..txt,37,101,27,0.73
+50-50,50-50.txt,35,92,24,0.686
+500 Days of Summer,500 Days of Summer.txt,15,85,10,0.667
+8MM,8MM.txt,24,102,13,0.542
+9,9.txt,3,30,0,0.0
+A Few Good Men,A Few Good Men.txt,25,118,18,0.72
+A Good Person,A Good Person.txt,26,103,16,0.615
+A Million Miles Away,A Million Miles Away.txt,27,166,14,0.519
+A Most Violent Year,A Most Violent Year.txt,26,56,12,0.462
+A Prayer Before Dawn,A Prayer Before Dawn.txt,10,115,9,0.9
+A Quiet Place,A Quiet Place.txt,3,44,3,1.0
+A Real Pain,A Real Pain.txt,10,73,7,0.7
+A Scanner Darkly,A Scanner Darkly.txt,34,91,15,0.441
+Above the Law,Above the Law.txt,22,164,20,0.909
+Absolute Power,Absolute Power.txt,16,121,13,0.812
+"Abyss, The","Abyss, The.txt",26,130,14,0.538
+Ace Ventura_ Pet Detective,Ace Ventura_ Pet Detective.txt,38,80,20,0.526
+Ad Astra,Ad Astra.txt,35,154,23,0.657
+Adaptation,Adaptation.txt,26,111,19,0.731
+"Addams Family, The","Addams Family, The.txt",13,52,11,0.846
+"Adjustment Bureau, The","Adjustment Bureau, The.txt",31,104,14,0.452
+"Adventures of Buckaroo Banzai Across the Eighth Dimension, The","Adventures of Buckaroo Banzai Across the Eighth Dimension, The.txt",50,115,33,0.66
+Affliction,Affliction.txt,24,88,21,0.875
+After School Special,After School Special.txt,32,85,22,0.688
+After.Life,After.Life.txt,20,72,9,0.45
+Agnes of God,Agnes of God.txt,18,50,10,0.556
+Air Force One,Air Force One.txt,44,114,31,0.705
+Air,Air.txt,26,119,16,0.615
+Airplane 2_ The Sequel,Airplane 2_ The Sequel.txt,62,144,32,0.516
+Airplane,Airplane.txt,33,123,28,0.848
+Ali,Ali.txt,48,237,31,0.646
+Alien 3,Alien 3.txt,13,123,13,1.0
+Alien Nation,Alien Nation.txt,30,104,17,0.567
+Alien vs. Predator,Alien vs. Predator.txt,21,46,11,0.524
+Alien,Alien.txt,7,31,5,0.714
+Alien_ Resurrection,Alien_ Resurrection.txt,18,61,14,0.778
+Aliens,Aliens.txt,25,98,16,0.64
+All About Eve,All About Eve.txt,20,103,14,0.7
+All About Steve,All About Steve.txt,20,142,15,0.75
+All of Us Strangers,All of Us Strangers.txt,7,33,4,0.571
+Almost Famous,Almost Famous.txt,45,242,28,0.622
+Alone in the Dark,Alone in the Dark.txt,22,103,17,0.773
+Amadeus,Amadeus.txt,41,128,25,0.61
+Amelia,Amelia.txt,25,178,14,0.56
+American Beauty,American Beauty.txt,14,68,8,0.571
+American Fiction,American Fiction.txt,36,94,21,0.583
+American Gangster,American Gangster.txt,38,153,22,0.579
+American History X,American History X.txt,29,147,22,0.759
+American Hustle,American Hustle.txt,25,136,20,0.8
+American Milkshake,American Milkshake.txt,19,89,11,0.579
+American Pie,American Pie.txt,34,85,22,0.647
+"American President, The","American President, The.txt",30,148,21,0.7
+American Psycho,American Psycho.txt,23,117,16,0.696
+American Shaolin_ King of Kickboxers II,American Shaolin_ King of Kickboxers II.txt,26,58,14,0.538
+American Sniper,American Sniper.txt,28,181,19,0.679
+American Splendor,American Splendor.txt,26,84,16,0.615
+American Werewolf in London,American Werewolf in London.txt,32,85,15,0.469
+"American, The","American, The.txt",14,75,7,0.5
+Amour,Amour.txt,11,22,4,0.364
+An Education,An Education.txt,15,175,11,0.733
+Analyze That,Analyze That.txt,37,120,23,0.622
+Analyze This,Analyze This.txt,36,123,26,0.722
+Anastasia,Anastasia.txt,19,70,14,0.737
+Angel Eyes,Angel Eyes.txt,23,115,16,0.696
+Anna Karenina,Anna Karenina.txt,52,150,36,0.692
+Annie Hall,Annie Hall.txt,49,132,30,0.612
