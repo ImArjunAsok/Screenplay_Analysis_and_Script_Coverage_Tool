@@ -69,7 +69,7 @@ def main():
         )
 
     print(f"\nLoading Rotten Tomatoes dataset...")
-    dataset = load_dataset("rotten_tomatoes")
+    dataset = load_dataset("cornell-movie-review-data/rotten_tomatoes")
     print(f"  train: {len(dataset['train'])}  validation: {len(dataset['validation'])}  test: {len(dataset['test'])}")
 
     print(f"\nLoading tokenizer and model ({MODEL_NAME})...")
