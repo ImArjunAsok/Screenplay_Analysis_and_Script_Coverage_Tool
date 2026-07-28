@@ -1,5 +1,5 @@
 """
-Week 2 -- spaCy NER character-extraction check
+spaCy NER character-extraction check
 ------------------------------------------------
 Your parser already knows "who speaks" from character cues (ALL-CAPS names
 followed by dialogue). This script adds the other half: "who's mentioned or

@@ -37,16 +37,7 @@ class ParsedScreenplay:
     title: str
     scenes: list[Scene] = field(default_factory=list)
     characters: list[str] = field(default_factory=list)
-    # Content that appeared before the first recognized scene heading
-    # (title page, byline, "FADE IN:", SUPER: cards, etc). This used to
-    # get silently promoted into a fake "Scene 0" -- see CHANGELOG note
-    # at the bottom of this file. It's kept here instead so nothing is
-    # lost, but it no longer inflates scene_count.
     front_matter: list[str] = field(default_factory=list)
-    # Diagnostics surfaced during parsing so a human can tell when the
-    # output should be double-checked (e.g. the file had no usable
-    # indentation, so character-cue detection fell back to a weaker
-    # heuristic).
     parser_notes: list[str] = field(default_factory=list)
 
     @property
@@ -130,9 +121,6 @@ SKIP_LINE = re.compile(
     re.IGNORECASE,
 )
 
-
-# ─── Parser ─────────────────────────────────────────────────────────────────
-
 class ScreenplayParser:
 
     def parse_file(self, filepath: str | Path) -> ParsedScreenplay:
@@ -144,23 +132,10 @@ class ScreenplayParser:
         lines = raw.splitlines()
         lines = self._clean_lines(lines)
 
-        # Different scripts indent character cues very differently (some as
-        # little as 3 spaces, some 35+). Rather than assuming a fixed
-        # number, work it out from this specific file before parsing. If
-        # the file has effectively no usable indentation (common after
-        # scraping/copy-pasting, which often collapses whitespace), fall
-        # back to a weaker blank-line-based heuristic instead of silently
-        # returning zero characters and zero dialogue.
         self._cue_indent_threshold, self._indentation_reliable = (
             self._compute_cue_indent_threshold(lines)
         )
 
-        # Some scripts drop INT./EXT. entirely (bare "LOCATION--TIME"
-        # headings). Only enable that looser matcher when strict INT/EXT
-        # headings are suspiciously sparse for a file this long -- most
-        # scripts change scene at least every page or two, so a long file
-        # with almost no strict matches is a sign of a different heading
-        # convention, not a short/simple script.
         strict_heading_count = sum(
             1 for line in lines
             if self._strict_heading_match(line.strip()) is not None
@@ -231,20 +206,15 @@ class ScreenplayParser:
         candidate = TRAILING_SCENE_NUMBER.sub("", candidate, count=1)
         return SCENE_HEADING.match(candidate)
 
-    # ── Preprocessing ────────────────────────────────────────────────────────
 
     def _clean_lines(self, lines: list[str]) -> list[str]:
         cleaned = []
         for line in lines:
-            # Strip trailing whitespace but preserve leading (indentation matters)
             line = line.rstrip()
-            # Skip obvious junk
             if SKIP_LINE.match(line.strip()):
                 continue
             cleaned.append(line)
         return cleaned
-
-    # ── Scene extraction ─────────────────────────────────────────────────────
 
     def _extract_scenes(self, lines: list[str]) -> tuple[list[Scene], list[str]]:
         scenes: list[Scene] = []
@@ -299,7 +269,6 @@ class ScreenplayParser:
                 i += 1
                 continue
 
-            # ── Inside a scene ───────────────────────────────────────────────
             # Dialogue block detection:
             # A character cue is normally identified by indentation. When
             # indentation isn't trustworthy for this file, we instead look
@@ -434,18 +403,12 @@ class ScreenplayParser:
         if not CHARACTER_CUE.match(stripped):
             return False
         if stripped.endswith("."):
-            # Real character cues never end with a bare period -- "MR.
-            # SMITH" has one mid-string, not at the end. A trailing period
-            # is a strong signal this is actually a sentence fragment from
-            # action text (e.g. "ACTIVATES ITSELF.", "TELESCOPE.") that
-            # happens to be short and ALL-CAPS, not a name.
             return False
 
         if self._indentation_reliable:
             indent = len(line) - len(line.lstrip())
             return indent >= self._cue_indent_threshold
 
-        # Fallback mode -- no trustworthy indentation signal.
         if not prev_line_blank:
             return False
         if next_nonblank_line is None:
@@ -454,7 +417,6 @@ class ScreenplayParser:
             return False
         return True
 
-    # ── Character extraction ─────────────────────────────────────────────────
 
     def _extract_characters(self, scenes: list[Scene]) -> list[str]:
         """Return unique character names sorted by number of dialogue lines."""
@@ -470,7 +432,6 @@ class ScreenplayParser:
         return sorted(filtered, key=lambda k: filtered[k], reverse=True)
 
 
-# ─── CLI helper ─────────────────────────────────────────────────────────────
 
 def parse_script(filepath: str, output_json: bool = False) -> ParsedScreenplay:
     parser = ScreenplayParser()
@@ -510,23 +471,3 @@ if __name__ == "__main__":
     filepath = sys.argv[1]
     as_json = "--json" in sys.argv
     parse_script(filepath, output_json=as_json)
-
-
-# ─── CHANGELOG ──────────────────────────────────────────────────────────────
-# - Fixed: content before the first recognized scene heading (title page,
-#   byline, "FADE IN:", SUPER: cards) was being appended to `scenes` as a
-#   fake "Scene 0" whenever it contained any action-like text, which was
-#   almost always. It's now collected separately as `front_matter` and
-#   never counted in scene_count.
-# - Fixed: character-cue detection depended entirely on indentation, which
-#   silently produced 0 dialogue / 0 characters whenever the source file's
-#   whitespace had been stripped or normalised (common with scraped or
-#   copy-pasted text). The parser now detects when indentation isn't a
-#   trustworthy signal for a given file and falls back to a blank-line
-#   heuristic instead, and records that fact in `parser_notes` so it's
-#   visible in the output rather than a silent failure.
-# - Remaining known limitation: both the indentation and blank-line
-#   heuristics are proxies for a screenplay's actual layout. For PDF input
-#   (per the dissertation proposal), pdfplumber's real x/y coordinates
-#   should replace both of these -- position on the page is a much more
-#   reliable signal than either whitespace convention.

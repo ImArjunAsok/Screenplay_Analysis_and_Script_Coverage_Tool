@@ -1,5 +1,5 @@
 """
-Week 2 -- Dataset builder
+Dataset builder
 -------------------------
 Parses every .txt screenplay in data/, sorts each into one of three tiers
 using the same quality signals notebooks/explore_parser.py surfaces, and

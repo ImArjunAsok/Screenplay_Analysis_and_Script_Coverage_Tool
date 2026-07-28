@@ -77,8 +77,6 @@ def main():
     model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
 
     def tokenize(batch):
-        # Standard tokenizer truncation (proper subword-aware cutoff),
-        # not the crude character-slicing the placeholder model used.
         return tokenizer(batch["text"], truncation=True, padding="max_length", max_length=256)
 
     tokenized = dataset.map(tokenize, batched=True)
