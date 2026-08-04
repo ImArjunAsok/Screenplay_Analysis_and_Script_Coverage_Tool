@@ -3,10 +3,10 @@ Sentiment Arc Module
 --------------------
 Takes a parsed screenplay and scores each scene's emotional tone.
 
-Uses the fine-tuned RoBERTa model from Week 3
+Uses the fine-tuned RoBERTa model
 (models/roberta-sentiment-finetuned/) if it exists. If you haven't run
 train_sentiment_model.py yet, falls back to the original pretrained
-SST-2 placeholder model, with a clear warning -- so this module keeps
+SST-2 placeholder model, with a clear warning. So this module keeps
 working at every stage, but you always know which model actually
 produced a given score.
 
