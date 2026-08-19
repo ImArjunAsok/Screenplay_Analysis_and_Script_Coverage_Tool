@@ -3,7 +3,7 @@ Week 3 -- Fine-tune RoBERTa for sentiment
 -------------------------------------------
 Fine-tunes roberta-base on a COMBINATION of two datasets: HuggingFace's
 Rotten Tomatoes (film-domain critic snippets) and the Stanford Large
-Movie Review Dataset ("imdb" on HuggingFace -- the same data as the
+Movie Review Dataset ("stanfordnlp/imdb" on HuggingFace -- the same data as the
 popular "IMDB Dataset of 50K Movie Reviews" on Kaggle, just accessed
 directly instead of via a manual CSV download).
 
@@ -101,7 +101,7 @@ def main():
         )
 
     print(f"\nLoading Rotten Tomatoes dataset...")
-    rt = load_dataset("rotten_tomatoes")
+    rt = load_dataset("cornell-movie-review-data/rotten_tomatoes")
     print(f"  train: {len(rt['train'])}  validation: {len(rt['validation'])}  test: {len(rt['test'])}")
 
     if args.rt_only:
@@ -110,7 +110,7 @@ def main():
         imdb_test = None
     else:
         print(f"\nLoading IMDB dataset (Stanford Large Movie Review Dataset)...")
-        imdb = load_dataset("imdb")
+        imdb = load_dataset("stanfordnlp/imdb")
         print(f"  train: {len(imdb['train'])}  test: {len(imdb['test'])}")
 
         rt_train = rt["train"].remove_columns([c for c in rt["train"].column_names if c not in ("text", "label")])
