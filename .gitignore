@@ -19,6 +19,4 @@ Thumbs.db
 #scripts
 data
 
-corpus.jsonl
-corpus_with_genres.jsonl
-corpus_clean_characters.jsonl
+*.jsonl
