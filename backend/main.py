@@ -28,11 +28,13 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 # Importing this triggers pipeline.py's model loading -- deliberately
 # done at server startup (import time), not per-request. See pipeline.py
 # for why.
 from backend import pipeline
+from backend.report_generator import generate_report
 
 app = FastAPI(
     title="Screenplay Analysis API",
@@ -95,3 +97,48 @@ async def analyze(file: UploadFile = File(...)):
         raise HTTPException(status_code=422, detail=result)
 
     return result
+
+
+@app.post("/report")
+async def report(file: UploadFile = File(...)):
+    """Same analysis as /analyze, but returns a downloadable PDF coverage
+    report instead of raw JSON -- the Week 8 'automated PDF report
+    generation' deliverable. Runs the full pipeline itself rather than
+    accepting an already-computed analysis, so this endpoint is
+    self-contained and usable on its own."""
+    if not file.filename.endswith(".txt"):
+        raise HTTPException(status_code=400, detail="Only .txt screenplay files are supported right now.")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp:
+        shutil.copyfileobj(file.file, tmp)
+        tmp_path = tmp.name
+
+    pdf_path = None
+    try:
+        original_title = Path(file.filename).stem
+        result = pipeline.analyze_screenplay(tmp_path, title_override=original_title)
+        if not result.get("success"):
+            raise HTTPException(status_code=422, detail=result)
+
+        pdf_fd = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        pdf_path = pdf_fd.name
+        pdf_fd.close()
+        generate_report(result, pdf_path)
+
+        return FileResponse(
+            pdf_path,
+            media_type="application/pdf",
+            filename=f"{original_title}_coverage_report.pdf",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Report generation failed: {e}")
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+        # Note: pdf_path is deliberately NOT deleted here -- FileResponse
+        # streams it back to the client after this function returns, so
+        # deleting it now would race against that. It's a temp file, so
+        # the OS will clean it up eventually; fine for now, worth
+        # revisiting with an explicit cleanup (e.g. BackgroundTask) if
+        # disk usage becomes a concern at higher traffic.

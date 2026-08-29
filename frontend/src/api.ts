@@ -1,0 +1,77 @@
+import type { AnalysisResult, AnalysisFailure } from "./types";
+
+// Change this if your backend runs somewhere other than the default
+// `uvicorn backend.main:app` local address.
+const API_BASE = "http://127.0.0.1:8000";
+
+export class ApiError extends Error {
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export async function analyzeScreenplay(
+  file: File
+): Promise<AnalysisResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/analyze`, {
+      method: "POST",
+      body: formData,
+    });
+  } catch {
+    throw new ApiError(
+      "Couldn't reach the analysis server. Is it running? " +
+        "(uvicorn backend.main:app --reload)"
+    );
+  }
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as
+      | { detail?: AnalysisFailure | string }
+      | null;
+    const detail = body?.detail;
+    const message =
+      typeof detail === "string"
+        ? detail
+        : detail?.error ?? `Analysis failed (status ${response.status}).`;
+    throw new ApiError(message, response.status);
+  }
+
+  return (await response.json()) as AnalysisResult;
+}
+
+export async function downloadReport(file: File, title: string): Promise<void> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/report`, {
+      method: "POST",
+      body: formData,
+    });
+  } catch {
+    throw new ApiError("Couldn't reach the analysis server to generate the report.");
+  }
+
+  if (!response.ok) {
+    throw new ApiError(`Report generation failed (status ${response.status}).`);
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${title}_coverage_report.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}

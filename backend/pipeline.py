@@ -105,7 +105,14 @@ def predict_viability(screenplay, predicted_genres: list[str]) -> dict:
 
     X = hstack(parts)
     rating = float(VIABILITY_MODEL.predict(X)[0])
-    return {"predicted_imdb_rating": round(rating, 2)}
+    return {
+        "predicted_imdb_rating": round(rating, 2),
+        "confidence": "low",
+        "caveat": "Script text alone explains only a small fraction of what determines "
+                  "audience reception (R^2 ~0.08 in cross-validation) -- acting, directing, "
+                  "marketing, and other non-textual factors are the larger drivers and are "
+                  "not captured by this model. Treat this number as a rough signal, not a forecast.",
+    }
 
 
 def analyze_characters(screenplay) -> dict:
