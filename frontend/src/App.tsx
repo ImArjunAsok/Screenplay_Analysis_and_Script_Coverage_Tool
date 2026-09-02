@@ -3,6 +3,7 @@ import "./App.css";
 import type { AnalysisResult } from "./types";
 import { analyzeScreenplay, downloadReport, ApiError } from "./api";
 import { getVerdict, verdictClassName } from "./verdict";
+import SentimentChart from "./SentimentChart";
 
 type Status = "idle" | "analyzing" | "results" | "error";
 
@@ -181,6 +182,18 @@ function ResultsView({
           <br />
           {result.sentiment_arc.turning_point_count} emotional turning points detected
         </p>
+        {result.sentiment_arc.scene_scores?.length > 0 && (
+          <div className="chart-wrap">
+            <SentimentChart
+              scores={result.sentiment_arc.scene_scores}
+              smoothed={result.sentiment_arc.smoothed_scores}
+              beats={result.story_structure.predicted_beats}
+            />
+            <p className="caveat-note">
+              Red vertical lines mark each predicted story beat at its scene position.
+            </p>
+          </div>
+        )}
         <p className="caveat-note">{result.sentiment_arc.sentiment_label_caveat}</p>
         <p className="caveat-note">Model: {result.sentiment_arc.model_source}</p>
       </div>

@@ -24,6 +24,8 @@ export interface SentimentArc {
   most_negative_scene: string;
   turning_point_count: number;
   model_source: string;
+  scene_scores: number[];
+  smoothed_scores: number[];
 }
 
 export interface PredictedBeat {

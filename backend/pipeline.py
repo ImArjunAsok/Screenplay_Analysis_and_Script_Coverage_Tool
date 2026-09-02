@@ -247,6 +247,8 @@ def analyze_screenplay(file_path: str, title_override: str = None) -> dict:
             "most_negative_scene": sentiment["statistics"]["most_negative_scene"],
             "turning_point_count": sentiment["statistics"]["turning_point_count"],
             "model_source": sentiment["model_source"],
+            "scene_scores": [s["sentiment_score"] for s in sentiment["arc"]],
+            "smoothed_scores": sentiment["smoothed_arc"],
         },
         "story_structure": {
             "predicted_beats": [

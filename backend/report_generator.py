@@ -16,16 +16,21 @@ Run standalone (for testing without the API):
     python backend/report_generator.py <analysis.json> <output.pdf>
 """
 
+import io
 import json
 import sys
 from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")  # non-interactive backend -- required for server-side PDF generation
+import matplotlib.pyplot as plt
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak,
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image,
 )
 
 NAVY = colors.HexColor("#1F3864")
@@ -33,6 +38,69 @@ LIGHT_BLUE = colors.HexColor("#EAF1FB")
 GREEN = colors.HexColor("#D9EAD3")
 AMBER = colors.HexColor("#FCE8B2")
 RED = colors.HexColor("#F4CCCC")
+
+
+def _build_sentiment_chart(analysis: dict):
+    """Draws the sentiment arc (raw + smoothed) with every predicted story
+    beat marked at its actual scene position. Labels for beats that land
+    close together (e.g. All Is Lost and Dark Night of the Soul sometimes
+    land on the exact same scene -- a known limitation, not hidden here)
+    are staggered onto alternating height tiers so they don't overlap,
+    while the vertical line always marks the TRUE scene position
+    regardless of which tier the label text sits at."""
+    sent = analysis.get("sentiment_arc", {})
+    scores = sent.get("scene_scores")
+    smoothed = sent.get("smoothed_scores")
+    if not scores:
+        return None
+
+    n = len(scores)
+    x = list(range(n))
+
+    fig, ax = plt.subplots(figsize=(9, 4.2))
+    ax.plot(x, scores, color="#c9c9c9", linewidth=0.7, label="Raw per-scene score")
+    if smoothed:
+        ax.plot(x, smoothed, color="#1F3864", linewidth=2, label="Smoothed arc")
+    ax.axhline(0, color="black", linewidth=0.6, linestyle="--", alpha=0.4)
+
+    beats = analysis.get("story_structure", {}).get("predicted_beats", [])
+    beats_sorted = sorted(beats, key=lambda b: b["scene_index"])
+    min_gap = max(2, n * 0.03)
+    nudge = n * 0.022
+    last_x = -1e9
+    cluster_step = 0
+    for b in beats_sorted:
+        idx = b["scene_index"]
+        if idx >= n:
+            continue
+        cluster_step = cluster_step + 1 if (idx - last_x) < min_gap else 0
+        last_x = idx
+
+        ax.axvline(idx, color="#a33d2e", alpha=0.3, linewidth=1)
+        label_x = idx + cluster_step * nudge
+        if cluster_step > 0:
+            # Thin connector so it's clear this label's TRUE position is
+            # the vertical line, not wherever the text ended up nudged to
+            ax.plot([idx, label_x], [1.0, 1.03], transform=ax.get_xaxis_transform(),
+                     color="#a33d2e", alpha=0.4, linewidth=0.6, clip_on=False)
+        ax.annotate(
+            b["beat"], xy=(label_x, 1.05), xycoords=("data", "axes fraction"),
+            rotation=90, fontsize=6.5, ha="center", va="bottom", color="#4a4a4a",
+        )
+
+    ax.set_ylim(-1.15, 1.15)
+    ax.set_xlim(-1, n)
+    ax.set_xlabel("Scene index", fontsize=9)
+    ax.set_ylabel("Sentiment (-1 negative -> +1 positive)", fontsize=9)
+    ax.tick_params(labelsize=8)
+    ax.legend(fontsize=7.5, loc="lower left", framealpha=0.9)
+    fig.suptitle("Sentiment Arc with Predicted Story Beats", fontsize=11, fontweight="bold", y=1.15)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=170, bbox_inches="tight")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
 
 
 def _recommendation(analysis: dict) -> tuple[str, colors.Color, str]:
@@ -193,6 +261,18 @@ def generate_report(analysis: dict, output_path: str):
     if sent.get("sentiment_label_caveat"):
         story.append(Spacer(1, 3))
         story.append(Paragraph(sent["sentiment_label_caveat"], styles["Caveat"]))
+
+    chart_buf = _build_sentiment_chart(analysis)
+    if chart_buf:
+        story.append(Spacer(1, 10))
+        chart_width = 6.4 * inch
+        chart_height = chart_width * (4.2 / 9)  # matches the figsize aspect ratio
+        story.append(Image(chart_buf, width=chart_width, height=chart_height))
+        story.append(Paragraph(
+            "Red vertical lines mark each predicted story beat at its scene position -- "
+            "see the table below for exact scene numbers and prediction method.",
+            styles["Caveat"],
+        ))
 
     story.append(Spacer(1, 8))
     beat_rows = [["Story Beat", "Scene #", "Method"]]
