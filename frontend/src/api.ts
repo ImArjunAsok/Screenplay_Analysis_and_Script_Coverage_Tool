@@ -1,7 +1,5 @@
 import type { AnalysisResult, AnalysisFailure } from "./types";
 
-// Change this if your backend runs somewhere other than the default
-// `uvicorn backend.main:app` local address.
 const API_BASE = "http://127.0.0.1:8000";
 
 export class ApiError extends Error {

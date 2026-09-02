@@ -152,7 +152,12 @@ function ResultsView({
             <tbody>
               {result.character_relationships.most_central_characters.map((c) => (
                 <tr key={c.name}>
-                  <td>{c.name}</td>
+                  <td>
+                    {c.name}
+                    {c.name === result.character_relationships.likely_protagonist && (
+                      <span className="protagonist-badge">Likely Protagonist</span>
+                    )}
+                  </td>
                   <td>{c.weighted_degree}</td>
                   <td>{c.betweenness_centrality.toFixed(3)}</td>
                 </tr>
@@ -165,7 +170,10 @@ function ResultsView({
       <div className="section">
         <div className="section-title">Emotional Arc</div>
         <p style={{ fontSize: 14, lineHeight: 1.6 }}>
-          Average sentiment: <strong>{result.sentiment_arc.average_sentiment.toFixed(3)}</strong>
+          Overall tone: <strong>{result.sentiment_arc.sentiment_label}</strong>{" "}
+          <span style={{ color: "var(--muted)" }}>
+            (raw score: {result.sentiment_arc.average_sentiment.toFixed(3)})
+          </span>
           <br />
           Most positive scene: <em>{result.sentiment_arc.most_positive_scene}</em>
           <br />
@@ -173,6 +181,7 @@ function ResultsView({
           <br />
           {result.sentiment_arc.turning_point_count} emotional turning points detected
         </p>
+        <p className="caveat-note">{result.sentiment_arc.sentiment_label_caveat}</p>
         <p className="caveat-note">Model: {result.sentiment_arc.model_source}</p>
       </div>
 

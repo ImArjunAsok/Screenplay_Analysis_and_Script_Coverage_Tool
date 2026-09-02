@@ -149,15 +149,25 @@ def generate_report(analysis: dict, output_path: str):
 
     rel = analysis["character_relationships"]
     story.append(Spacer(1, 8))
+    protagonist_line = ""
+    if rel.get("likely_protagonist"):
+        protagonist_line = (
+            f" Likely protagonist: <b>{rel['likely_protagonist']}</b> "
+            f"(most scenes shared with other characters -- a reasonable proxy for "
+            f"narrative centrality, not a confirmed role)."
+        )
     story.append(Paragraph(
         f"<b>Character network:</b> {rel['character_count_in_network']} characters, "
-        f"{rel['relationship_count']} relationships.",
+        f"{rel['relationship_count']} relationships.{protagonist_line}",
         styles["Body"],
     ))
     if rel["most_central_characters"]:
         central_rows = [["Character", "Scenes Shared (weighted)", "Bridge Score (betweenness)"]]
         for c in rel["most_central_characters"][:5]:
-            central_rows.append([c["name"], str(c["weighted_degree"]), f"{c['betweenness_centrality']:.3f}"])
+            name = c["name"]
+            if name == rel.get("likely_protagonist"):
+                name = f"{name}  \u2605"  # star marker, explained in the line above
+            central_rows.append([name, str(c["weighted_degree"]), f"{c['betweenness_centrality']:.3f}"])
         central_table = Table(central_rows, colWidths=[2.2 * inch, 2.4 * inch, 2.4 * inch])
         central_table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), NAVY),
@@ -173,13 +183,16 @@ def generate_report(analysis: dict, output_path: str):
     story.append(Paragraph("Emotional Arc & Story Structure", styles["SectionHeading"]))
     sent = analysis["sentiment_arc"]
     story.append(Paragraph(
-        f"Average sentiment: <b>{sent['average_sentiment']:+.3f}</b> "
-        f"(model: {sent['model_source']}). "
+        f"Overall tone: <b>{sent.get('sentiment_label', 'N/A')}</b> "
+        f"(raw score: {sent['average_sentiment']:+.3f}, model: {sent['model_source']}). "
         f"Most positive scene: <i>{sent['most_positive_scene']}</i>. "
         f"Most negative scene: <i>{sent['most_negative_scene']}</i>. "
         f"{sent['turning_point_count']} emotional turning points detected.",
         styles["Body"],
     ))
+    if sent.get("sentiment_label_caveat"):
+        story.append(Spacer(1, 3))
+        story.append(Paragraph(sent["sentiment_label_caveat"], styles["Caveat"]))
 
     story.append(Spacer(1, 8))
     beat_rows = [["Story Beat", "Scene #", "Method"]]

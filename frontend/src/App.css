@@ -243,6 +243,20 @@
   border-radius: 3px;
 }
 
+.protagonist-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--stamp-green);
+  color: var(--paper);
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
 .caveat-note {
   font-size: 12px;
   color: var(--muted);

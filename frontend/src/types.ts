@@ -18,6 +18,8 @@ export interface CharacterBreakdown {
 
 export interface SentimentArc {
   average_sentiment: number;
+  sentiment_label: string;
+  sentiment_label_caveat: string;
   most_positive_scene: string;
   most_negative_scene: string;
   turning_point_count: number;
@@ -50,6 +52,7 @@ export interface BridgeCharacter {
 export interface CharacterRelationships {
   character_count_in_network: number;
   relationship_count: number;
+  likely_protagonist: string | null;
   most_central_characters: CentralCharacter[];
   top_bridge_characters: BridgeCharacter[];
 }

@@ -115,6 +115,35 @@ def predict_viability(screenplay, predicted_genres: list[str]) -> dict:
     }
 
 
+def _sentiment_label(score: float) -> str:
+    """Plain-language bucket for a raw -1..+1 sentiment score. Thresholds
+    are a reasonable, disclosed heuristic based on distance from zero --
+    NOT derived from genre-specific norms. Deliberately doesn't claim to
+    answer "is this normal for a comedy" -- that would need a separate
+    analysis comparing scores across genres in the training corpus,
+    which doesn't exist yet. See the caveat text shipped alongside this
+    in the API response."""
+    direction = "Positive" if score > 0 else "Negative" if score < 0 else "Neutral"
+    magnitude = abs(score)
+    if magnitude < 0.05:
+        return "Neutral / Balanced"
+    elif magnitude < 0.2:
+        return f"Mildly {direction}"
+    elif magnitude < 0.45:
+        return f"Moderately {direction}"
+    else:
+        return f"Strongly {direction}"
+
+
+SENTIMENT_LABEL_CAVEAT = (
+    "This label reflects distance from a neutral score, not narrative quality or "
+    "genre expectations -- a low score does not indicate poor writing, and this "
+    "does not yet account for genre norms (e.g. thrillers trending more negative "
+    "than comedies on average). Treat it as a rough descriptive label, not a "
+    "genre-adjusted benchmark."
+)
+
+
 def analyze_characters(screenplay) -> dict:
     scenes_for_ner = [{"action_lines": s.action_lines} for s in screenplay.scenes]
     ner_names = get_ner_names_for_screenplay(
@@ -160,9 +189,16 @@ def analyze_relationships(screenplay) -> dict:
     ranked = sorted(centrality.items(), key=lambda x: -x[1]["weighted_degree"])
     ranked_bridges = sorted(centrality.items(), key=lambda x: -x[1]["betweenness_centrality"])
 
+    # "Most scenes shared" is a reasonable proxy for narrative centrality,
+    # but it isn't guaranteed to be the actual protagonist -- an ensemble
+    # hub, mentor figure, or antagonist can also score highest. Labelled
+    # "likely" deliberately, not asserted as fact.
+    likely_protagonist = ranked[0][0] if ranked else None
+
     return {
         "character_count_in_network": G.number_of_nodes(),
         "relationship_count": G.number_of_edges(),
+        "likely_protagonist": likely_protagonist,
         "most_central_characters": [{"name": n, **c} for n, c in ranked[:5]],
         "top_bridge_characters": [{"name": n, "betweenness": c["betweenness_centrality"]} for n, c in ranked_bridges[:5]],
     }
@@ -205,6 +241,8 @@ def analyze_screenplay(file_path: str, title_override: str = None) -> dict:
         "characters": characters,
         "sentiment_arc": {
             "average_sentiment": sentiment["statistics"]["average_sentiment"],
+            "sentiment_label": _sentiment_label(sentiment["statistics"]["average_sentiment"]),
+            "sentiment_label_caveat": SENTIMENT_LABEL_CAVEAT,
             "most_positive_scene": sentiment["statistics"]["most_positive_scene"],
             "most_negative_scene": sentiment["statistics"]["most_negative_scene"],
             "turning_point_count": sentiment["statistics"]["turning_point_count"],
