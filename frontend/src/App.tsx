@@ -46,12 +46,12 @@ function UploadZone({
       onDragLeave={() => setDragActive(false)}
       onDrop={handleDrop}
     >
-      <p>Drop a screenplay (.txt) here, or choose a file</p>
+      <p>Drop a screenplay (.txt or .pdf) here, or choose a file</p>
       <label className="btn" style={{ display: "inline-block" }}>
         Choose File
         <input
           type="file"
-          accept=".txt"
+          accept=".txt,.pdf"
           disabled={disabled}
           style={{ display: "none" }}
           onChange={(e) => {
@@ -263,10 +263,10 @@ export default function App() {
   };
 
   const handleDownloadReport = async () => {
-    if (!file || !result) return;
+    if (!result) return;
     setDownloading(true);
     try {
-      await downloadReport(file, result.title);
+      await downloadReport(result);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't generate the report.");
     } finally {

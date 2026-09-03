@@ -45,15 +45,19 @@ export async function analyzeScreenplay(
   return (await response.json()) as AnalysisResult;
 }
 
-export async function downloadReport(file: File, title: string): Promise<void> {
-  const formData = new FormData();
-  formData.append("file", file);
-
+export async function downloadReport(analysis: AnalysisResult): Promise<void> {
+  // Sends the analysis we ALREADY HAVE (from the earlier /analyze call)
+  // instead of re-uploading the file, which used to make the backend
+  // re-run the entire pipeline -- parsing, sentiment scoring, genre and
+  // viability prediction -- a second time just to build a PDF from data
+  // that was already computed. This is why "Download PDF" used to feel
+  // as slow as the original analysis; it's now just formatting.
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}/report`, {
+    response = await fetch(`${API_BASE}/report-from-analysis`, {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(analysis),
     });
   } catch {
     throw new ApiError("Couldn't reach the analysis server to generate the report.");
@@ -67,7 +71,7 @@ export async function downloadReport(file: File, title: string): Promise<void> {
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${title}_coverage_report.pdf`;
+  link.download = `${analysis.title}_coverage_report.pdf`;
   document.body.appendChild(link);
   link.click();
   link.remove();

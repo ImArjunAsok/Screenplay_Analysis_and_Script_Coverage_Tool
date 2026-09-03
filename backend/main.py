@@ -14,6 +14,7 @@ Then either:
     API tester (upload a file right in the browser, no client code needed)
   - or POST a file directly:
         curl -X POST http://127.0.0.1:8000/analyze -F "file=@data/Black_Panther.txt"
+        curl -X POST http://127.0.0.1:8000/analyze -F "file=@data/Black_Panther.pdf"
 
 IMPORTANT: startup will take a while the FIRST time the server boots --
 this is when pipeline.py's models actually get loaded (spaCy, the
@@ -26,7 +27,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -38,7 +39,7 @@ from backend.report_generator import generate_report
 
 app = FastAPI(
     title="Screenplay Analysis API",
-    description="Upload a screenplay (.txt) and receive parsed structure, "
+    description="Upload a screenplay (.txt or .pdf) and receive parsed structure, "
                  "sentiment arc, story beats, character relationships, "
                  "predicted genre, and a viability estimate in one response.",
     version="0.1.0",
@@ -67,21 +68,27 @@ def health_check():
     }
 
 
+ALLOWED_EXTENSIONS = (".txt", ".pdf")
+
+
 @app.post("/analyze")
 async def analyze(file: UploadFile = File(...)):
-    """Accepts a plain-text screenplay (.txt) and returns the full
+    """Accepts a screenplay (.txt or .pdf) and returns the full
     analysis: parsed structure, characters, sentiment arc, story beats,
     character relationships, predicted genre, and viability estimate."""
-    if not file.filename.endswith(".txt"):
+    suffix = Path(file.filename).suffix.lower()
+    if suffix not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail="Only .txt screenplay files are supported right now. "
-                   "PDF support is planned but not yet built.",
+            detail=f"Unsupported file type '{suffix}'. Supported: {', '.join(ALLOWED_EXTENSIONS)}.",
         )
 
     # Write the upload to a temp file -- the parser and every downstream
-    # module work off a real file path, not an in-memory stream.
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp:
+    # module work off a real file path, not an in-memory stream. The
+    # suffix MUST match the real upload (not hardcoded to .txt) since
+    # the parser decides how to read the file based on this extension --
+    # a PDF saved with a .txt suffix would be read as raw text and fail.
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         shutil.copyfileobj(file.file, tmp)
         tmp_path = tmp.name
 
@@ -106,10 +113,14 @@ async def report(file: UploadFile = File(...)):
     generation' deliverable. Runs the full pipeline itself rather than
     accepting an already-computed analysis, so this endpoint is
     self-contained and usable on its own."""
-    if not file.filename.endswith(".txt"):
-        raise HTTPException(status_code=400, detail="Only .txt screenplay files are supported right now.")
+    suffix = Path(file.filename).suffix.lower()
+    if suffix not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{suffix}'. Supported: {', '.join(ALLOWED_EXTENSIONS)}.",
+        )
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         shutil.copyfileobj(file.file, tmp)
         tmp_path = tmp.name
 
@@ -142,3 +153,29 @@ async def report(file: UploadFile = File(...)):
         # the OS will clean it up eventually; fine for now, worth
         # revisiting with an explicit cleanup (e.g. BackgroundTask) if
         # disk usage becomes a concern at higher traffic.
+
+
+@app.post("/report-from-analysis")
+async def report_from_analysis(analysis: dict = Body(...)):
+    """Generates a PDF from an analysis result the client ALREADY HAS --
+    e.g. the frontend, right after a successful /analyze call -- instead
+    of re-running the full pipeline (parsing, sentiment scoring,
+    genre/viability prediction) a second time just to build a PDF from
+    data that was already computed seconds earlier. This is the endpoint
+    the frontend should call for its "Download PDF Report" button; the
+    file-upload /report endpoint above still exists for standalone use
+    (e.g. going straight from a file to a PDF via curl or /docs, with no
+    prior /analyze call), but it does the full, slower pipeline run by
+    necessity, since it only has a file, not a result."""
+    if not analysis.get("success"):
+        raise HTTPException(status_code=422, detail="Cannot generate a report from a failed analysis.")
+
+    pdf_fd = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    pdf_path = pdf_fd.name
+    pdf_fd.close()
+    try:
+        generate_report(analysis, pdf_path)
+        title = analysis.get("title", "report")
+        return FileResponse(pdf_path, media_type="application/pdf", filename=f"{title}_coverage_report.pdf")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Report generation failed: {e}")
