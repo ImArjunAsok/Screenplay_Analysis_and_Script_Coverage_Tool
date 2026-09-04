@@ -64,6 +64,10 @@ function UploadZone({
   );
 }
 
+function LayerDivider({ label }: { label: string }) {
+  return <div className="layer-divider">{label}</div>;
+}
+
 function ResultsView({
   result,
   onDownloadReport,
@@ -117,7 +121,27 @@ function ResultsView({
             <span className="caveat-note">No genre predicted with confidence.</span>
           )}
         </div>
+        {result.genre_confidence?.length > 0 && (
+          <table className="data-table" style={{ marginTop: 12 }}>
+            <thead>
+              <tr>
+                <th>Genre</th>
+                <th>Confidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.genre_confidence.slice(0, 5).map((c) => (
+                <tr key={c.genre}>
+                  <td>{c.genre}</td>
+                  <td className="beat-index">{c.probability.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
+
+      <LayerDivider label="LAYER 1 — DESCRIPTIVE ANALYSIS: What is in the screenplay?" />
 
       <div className="section">
         <div className="section-title">Characters</div>
@@ -142,6 +166,11 @@ function ResultsView({
             {result.character_relationships.character_count_in_network} characters,{" "}
             {result.character_relationships.relationship_count} relationships
           </p>
+          {result.character_relationships.network_interpretation && (
+            <p style={{ fontSize: 13, fontStyle: "italic", marginBottom: 12 }}>
+              {result.character_relationships.network_interpretation}
+            </p>
+          )}
           <table className="data-table">
             <thead>
               <tr>
@@ -167,6 +196,8 @@ function ResultsView({
           </table>
         </div>
       )}
+
+      <LayerDivider label="LAYER 2 — STRUCTURAL ANALYSIS: How is the screenplay constructed?" />
 
       <div className="section">
         <div className="section-title">Emotional Arc</div>
@@ -199,13 +230,19 @@ function ResultsView({
       </div>
 
       <div className="section">
-        <div className="section-title">Story Structure</div>
+        <div className="section-title">{result.story_structure.detection_type || "Story Structure"}</div>
+        {result.story_structure.detection_note && (
+          <p className="caveat-note" style={{ marginBottom: 10 }}>
+            {result.story_structure.detection_note}
+          </p>
+        )}
         <table className="data-table">
           <thead>
             <tr>
               <th>Beat</th>
               <th>Scene</th>
               <th>Method</th>
+              <th>Confidence</th>
             </tr>
           </thead>
           <tbody>
@@ -214,11 +251,38 @@ function ResultsView({
                 <td>{b.beat}</td>
                 <td className="beat-index">{b.scene_index}</td>
                 <td style={{ fontSize: 12, color: "var(--muted)" }}>{b.method}</td>
+                <td>
+                  <span className={`confidence-badge confidence-${b.confidence?.toLowerCase()}`}>
+                    {b.confidence}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      <LayerDivider label="LAYER 3 — PREDICTIVE ANALYSIS: What might happen commercially?" />
+
+      <div className="section">
+        <div className="section-title">Viability Assessment</div>
+        <p style={{ fontSize: 14 }}>
+          Predicted IMDb rating: <strong>{result.viability.predicted_imdb_rating}/10</strong>
+          {result.viability.confidence && ` (confidence: ${result.viability.confidence})`}
+        </p>
+        {result.viability.caveat && <p className="caveat-note">{result.viability.caveat}</p>}
+      </div>
+
+      {result.limitations?.length > 0 && (
+        <div className="section limitations-box">
+          <div className="section-title">Automated Analysis Limitations</div>
+          <ul className="limitations-list">
+            {result.limitations.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="report-cta">
         <button className="btn" onClick={onDownloadReport} disabled={downloading}>

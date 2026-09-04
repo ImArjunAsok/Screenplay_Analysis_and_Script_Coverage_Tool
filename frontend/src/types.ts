@@ -32,9 +32,12 @@ export interface PredictedBeat {
   beat: string;
   scene_index: number;
   method: string;
+  confidence: string;
 }
 
 export interface StoryStructure {
+  detection_type: string;
+  detection_note: string;
   predicted_beats: PredictedBeat[];
 }
 
@@ -55,6 +58,8 @@ export interface CharacterRelationships {
   character_count_in_network: number;
   relationship_count: number;
   likely_protagonist: string | null;
+  top_bridge_character: string | null;
+  network_interpretation: string | null;
   most_central_characters: CentralCharacter[];
   top_bridge_characters: BridgeCharacter[];
 }
@@ -63,6 +68,11 @@ export interface Viability {
   predicted_imdb_rating: number;
   confidence?: string;
   caveat?: string;
+}
+
+export interface GenreConfidence {
+  genre: string;
+  probability: number;
 }
 
 export interface AnalysisResult {
@@ -75,7 +85,9 @@ export interface AnalysisResult {
   story_structure: StoryStructure;
   character_relationships: CharacterRelationships;
   predicted_genres: string[];
+  genre_confidence: GenreConfidence[];
   viability: Viability;
+  limitations: string[];
 }
 
 export interface AnalysisFailure {
