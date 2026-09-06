@@ -197,6 +197,73 @@ function ResultsView({
         </div>
       )}
 
+      {result.dialogue_distribution?.length > 0 && (
+        <div className="section">
+          <div className="section-title">Dialogue Distribution</div>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Character</th>
+                <th>Dialogue Lines</th>
+                <th>Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.dialogue_distribution.slice(0, 6).map((d) => (
+                <tr key={d.character}>
+                  <td>{d.character}</td>
+                  <td className="beat-index">{d.dialogue_lines}</td>
+                  <td className="beat-index">{d.share_pct.toFixed(1)}%</td>
+                </tr>
+              ))}
+              {result.dialogue_distribution.length > 6 && (
+                <tr>
+                  <td>Others</td>
+                  <td className="beat-index">
+                    {result.dialogue_distribution.slice(6).reduce((s, d) => s + d.dialogue_lines, 0)}
+                  </td>
+                  <td className="beat-index">
+                    {result.dialogue_distribution.slice(6).reduce((s, d) => s + d.share_pct, 0).toFixed(1)}%
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {result.character_arcs?.length > 0 && (
+        <div className="section">
+          <div className="section-title">Character Arcs</div>
+          <p className="caveat-note" style={{ marginBottom: 12 }}>
+            Emotional trajectory across each character's scenes (introduction / midpoint / final
+            act). Only shown for characters with 3+ scene appearances.
+          </p>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Character</th>
+                <th>Intro</th>
+                <th>Mid</th>
+                <th>Final</th>
+                <th>Direction</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.character_arcs.slice(0, 5).map((a) => (
+                <tr key={a.character}>
+                  <td>{a.character}</td>
+                  <td className="beat-index">{a.introduction_sentiment > 0 ? "+" : ""}{a.introduction_sentiment.toFixed(2)}</td>
+                  <td className="beat-index">{a.midpoint_sentiment > 0 ? "+" : ""}{a.midpoint_sentiment.toFixed(2)}</td>
+                  <td className="beat-index">{a.final_sentiment > 0 ? "+" : ""}{a.final_sentiment.toFixed(2)}</td>
+                  <td>{a.arc_direction}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       <LayerDivider label="LAYER 2 — STRUCTURAL ANALYSIS: How is the screenplay constructed?" />
 
       <div className="section">
@@ -206,6 +273,15 @@ function ResultsView({
           <span style={{ color: "var(--muted)" }}>
             (raw score: {result.sentiment_arc.average_sentiment.toFixed(3)})
           </span>
+          {result.sentiment_arc.emotional_volatility_label && (
+            <>
+              <br />
+              Emotional volatility: <strong>{result.sentiment_arc.emotional_volatility_label}</strong>{" "}
+              <span style={{ color: "var(--muted)" }}>
+                (std. dev. {result.sentiment_arc.emotional_volatility.toFixed(3)})
+              </span>
+            </>
+          )}
           <br />
           Most positive scene: <em>{result.sentiment_arc.most_positive_scene}</em>
           <br />
@@ -213,6 +289,11 @@ function ResultsView({
           <br />
           {result.sentiment_arc.turning_point_count} emotional turning points detected
         </p>
+        {result.sentiment_arc.arc_interpretation && (
+          <p style={{ fontSize: 13, fontStyle: "italic", marginTop: 6 }}>
+            {result.sentiment_arc.arc_interpretation}
+          </p>
+        )}
         {result.sentiment_arc.scene_scores?.length > 0 && (
           <div className="chart-wrap">
             <SentimentChart
@@ -261,6 +342,33 @@ function ResultsView({
           </tbody>
         </table>
       </div>
+
+      {result.pacing?.scene_count > 0 && (
+        <div className="section">
+          <div className="section-title">Pacing Analysis</div>
+          <div className="stat-grid">
+            <StatCard value={`${result.pacing.average_scene_length_lines.toFixed(1)}`} label="Avg. Scene Length (lines)" />
+            <StatCard value={`${(result.pacing.average_dialogue_density * 100).toFixed(0)}%`} label="Avg. Dialogue Density" />
+            <StatCard value={`#${result.pacing.shortest_scene.scene_index}`} label="Shortest Scene" />
+            <StatCard value={`#${result.pacing.longest_scene.scene_index}`} label="Longest Scene" />
+          </div>
+          {result.pacing.pacing_outliers?.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                Potential pacing concerns ({result.pacing.pacing_outliers.length} scene(s) with
+                unusually high/low dialogue density):
+              </p>
+              {result.pacing.pacing_outliers.slice(0, 5).map((o) => (
+                <p className="caveat-note" key={o.scene_index} style={{ marginTop: 2 }}>
+                  Scene {o.scene_index} ({o.heading}) — unusually {o.type} dialogue density (
+                  {(o.dialogue_density * 100).toFixed(0)}%)
+                </p>
+              ))}
+            </div>
+          )}
+          <p className="caveat-note" style={{ marginTop: 8 }}>{result.pacing.pacing_note}</p>
+        </div>
+      )}
 
       <LayerDivider label="LAYER 3 — PREDICTIVE ANALYSIS: What might happen commercially?" />
 

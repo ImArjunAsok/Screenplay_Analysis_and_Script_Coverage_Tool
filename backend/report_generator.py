@@ -107,22 +107,29 @@ def _recommendation(analysis: dict) -> tuple[str, colors.Color, str]:
     """Derives a simple Pass/Consider/Recommend verdict from the
     viability prediction -- the single most useful thing a real coverage
     report leads with. Thresholds are a reasonable, disclosed starting
-    point (rating out of 10), not a validated industry standard."""
+    point (rating out of 10), not a validated industry standard.
+
+    Terminology note: consistently says "predicted IMDb rating"
+    throughout, not "audience reception" -- the model was trained on
+    real IMDb ratings specifically (via OMDb), so that's the precise,
+    academically accurate term. A vaguer phrase invites the question
+    "is that the same thing the model predicts?" when it should be
+    obviously, exactly the same thing."""
     rating = analysis.get("viability", {}).get("predicted_imdb_rating")
     if rating is None:
         return "UNRATED", colors.grey, "No viability estimate was available for this script."
     if rating >= 7.0:
         return "RECOMMEND", GREEN, (
-            f"The predicted audience reception ({rating}/10) is strong. "
+            f"The predicted IMDb rating ({rating}/10) is strong. "
             f"Worth prioritising for further review."
         )
     if rating >= 5.5:
         return "CONSIDER", AMBER, (
-            f"The predicted audience reception ({rating}/10) is middling. "
+            f"The predicted IMDb rating ({rating}/10) is middling. "
             f"May be worth a second read depending on genre fit and budget."
         )
     return "PASS", RED, (
-        f"The predicted audience reception ({rating}/10) is weak. "
+        f"The predicted IMDb rating ({rating}/10) is weak. "
         f"Note: this estimate is text-only and has a documented low ceiling -- "
         f"treat as one input among many, not a final verdict."
     )
@@ -134,10 +141,29 @@ def build_styles():
                                spaceAfter=6, fontName="Helvetica-Bold"))
     styles.add(ParagraphStyle("SectionHeading", fontSize=14, leading=18, textColor=NAVY,
                                spaceBefore=16, spaceAfter=8, fontName="Helvetica-Bold"))
+    styles.add(ParagraphStyle("LayerHeading", fontSize=10, leading=13, textColor=colors.white,
+                               fontName="Helvetica-Bold", spaceAfter=0))
     styles.add(ParagraphStyle("Body", fontSize=10, leading=14))
     styles.add(ParagraphStyle("Caveat", fontSize=8.5, leading=12, textColor=colors.HexColor("#666666"),
                                fontName="Helvetica-Oblique"))
     return styles
+
+
+def _layer_divider(story, styles, label: str):
+    """Full-width colored bar marking one of the three analysis layers
+    (Descriptive / Structural / Predictive) -- per the reviewer's #18
+    suggestion, this makes the report's own logic visible: what's in the
+    script, vs. how it's built, vs. what might happen commercially."""
+    bar = Table([[Paragraph(label, styles["LayerHeading"])]], colWidths=[6.5 * inch])
+    bar.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), NAVY),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    story.append(Spacer(1, 14))
+    story.append(bar)
+    story.append(Spacer(1, 6))
 
 
 def generate_report(analysis: dict, output_path: str):
@@ -202,7 +228,28 @@ def generate_report(analysis: dict, output_path: str):
         for note in analysis["parser_notes"]:
             story.append(Paragraph(f"Parser note: {note}", styles["Caveat"]))
 
-    # ---- Characters ----
+    genre_conf = analysis.get("genre_confidence")
+    if genre_conf:
+        story.append(Spacer(1, 8))
+        story.append(Paragraph("<b>Genre confidence</b> (top 5, all genres scored):", styles["Body"]))
+        conf_rows = [["Genre", "Confidence"]]
+        for c in genre_conf[:5]:
+            conf_rows.append([c["genre"], f"{c['probability']:.2f}"])
+        conf_table = Table(conf_rows, colWidths=[2.5 * inch, 2 * inch])
+        conf_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("ALIGN", (1, 0), (1, -1), "CENTER"),
+            ("FONTSIZE", (0, 1), (-1, -1), 9),
+        ]))
+        story.append(Spacer(1, 4))
+        story.append(conf_table)
+
+    # ==== LAYER 1: DESCRIPTIVE ANALYSIS -- "what is in the screenplay?" ====
+    _layer_divider(story, styles, "LAYER 1 -- DESCRIPTIVE ANALYSIS: What is in the screenplay?")
+
     story.append(Paragraph("Character Breakdown", styles["SectionHeading"]))
     chars = analysis["characters"]
     story.append(Paragraph(
@@ -213,7 +260,10 @@ def generate_report(analysis: dict, output_path: str):
         styles["Body"],
     ))
     if chars["likely_real_names"]:
-        story.append(Paragraph(", ".join(chars["likely_real_names"][:15]), styles["Body"]))
+        # Show ALL identified characters -- previously capped at 15, which
+        # silently disagreed with the stated count just above it and could
+        # make a reader think the system missed characters it actually found.
+        story.append(Paragraph(", ".join(chars["likely_real_names"]), styles["Body"]))
 
     rel = analysis["character_relationships"]
     story.append(Spacer(1, 8))
@@ -229,6 +279,9 @@ def generate_report(analysis: dict, output_path: str):
         f"{rel['relationship_count']} relationships.{protagonist_line}",
         styles["Body"],
     ))
+    if rel.get("network_interpretation"):
+        story.append(Spacer(1, 3))
+        story.append(Paragraph(f"<i>{rel['network_interpretation']}</i>", styles["Body"]))
     if rel["most_central_characters"]:
         central_rows = [["Character", "Scenes Shared (weighted)", "Bridge Score (betweenness)"]]
         for c in rel["most_central_characters"][:5]:
@@ -247,17 +300,76 @@ def generate_report(analysis: dict, output_path: str):
         story.append(Spacer(1, 6))
         story.append(central_table)
 
-    # ---- Sentiment & Structure ----
-    story.append(Paragraph("Emotional Arc & Story Structure", styles["SectionHeading"]))
+    dist = analysis.get("dialogue_distribution")
+    if dist:
+        story.append(Spacer(1, 14))
+        story.append(Paragraph("Dialogue Distribution", styles["SectionHeading"]))
+        dist_rows = [["Character", "Dialogue Lines", "Share"]]
+        for d in dist[:6]:
+            dist_rows.append([d["character"], str(d["dialogue_lines"]), f"{d['share_pct']:.1f}%"])
+        if len(dist) > 6:
+            other_lines = sum(d["dialogue_lines"] for d in dist[6:])
+            other_pct = sum(d["share_pct"] for d in dist[6:])
+            dist_rows.append(["Others", str(other_lines), f"{other_pct:.1f}%"])
+        dist_table = Table(dist_rows, colWidths=[2.2 * inch, 2.0 * inch, 1.5 * inch])
+        dist_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+        ]))
+        story.append(dist_table)
+
+    arcs = analysis.get("character_arcs")
+    if arcs:
+        story.append(Spacer(1, 14))
+        story.append(Paragraph("Character Arcs", styles["SectionHeading"]))
+        story.append(Paragraph(
+            "Emotional trajectory across each character's scenes, split into introduction / "
+            "midpoint / final-act segments. Only shown for characters with 3+ scene appearances.",
+            styles["Caveat"],
+        ))
+        story.append(Spacer(1, 6))
+        arc_rows = [["Character", "Intro", "Mid", "Final", "Direction", "Strength"]]
+        for a in arcs[:5]:
+            arc_rows.append([
+                a["character"], f"{a['introduction_sentiment']:+.2f}", f"{a['midpoint_sentiment']:+.2f}",
+                f"{a['final_sentiment']:+.2f}", a["arc_direction"], f"{a['arc_strength']:.2f}",
+            ])
+        arc_table = Table(arc_rows, colWidths=[1.6 * inch, 0.8 * inch, 0.8 * inch, 0.8 * inch, 1.1 * inch, 0.9 * inch])
+        arc_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+            ("FONTSIZE", (0, 1), (-1, -1), 9),
+        ]))
+        story.append(arc_table)
+
+    # ==== LAYER 2: STRUCTURAL ANALYSIS -- "how is it constructed?" ====
+    _layer_divider(story, styles, "LAYER 2 -- STRUCTURAL ANALYSIS: How is the screenplay constructed?")
+
+    story.append(Paragraph("Emotional Arc", styles["SectionHeading"]))
     sent = analysis["sentiment_arc"]
+    volatility_line = ""
+    if sent.get("emotional_volatility_label"):
+        volatility_line = (
+            f" Emotional volatility: <b>{sent['emotional_volatility_label']}</b> "
+            f"(std. dev. {sent.get('emotional_volatility', 0):.3f})."
+        )
     story.append(Paragraph(
         f"Overall tone: <b>{sent.get('sentiment_label', 'N/A')}</b> "
-        f"(raw score: {sent['average_sentiment']:+.3f}, model: {sent['model_source']}). "
+        f"(raw score: {sent['average_sentiment']:+.3f}, model: {sent['model_source']}).{volatility_line} "
         f"Most positive scene: <i>{sent['most_positive_scene']}</i>. "
         f"Most negative scene: <i>{sent['most_negative_scene']}</i>. "
         f"{sent['turning_point_count']} emotional turning points detected.",
         styles["Body"],
     ))
+    if sent.get("arc_interpretation"):
+        story.append(Spacer(1, 3))
+        story.append(Paragraph(f"<i>{sent['arc_interpretation']}</i>", styles["Body"]))
     if sent.get("sentiment_label_caveat"):
         story.append(Spacer(1, 3))
         story.append(Paragraph(sent["sentiment_label_caveat"], styles["Caveat"]))
@@ -274,11 +386,15 @@ def generate_report(analysis: dict, output_path: str):
             styles["Caveat"],
         ))
 
-    story.append(Spacer(1, 8))
-    beat_rows = [["Story Beat", "Scene #", "Method"]]
-    for b in analysis["story_structure"]["predicted_beats"]:
-        beat_rows.append([b["beat"], str(b["scene_index"]), b["method"]])
-    beat_table = Table(beat_rows, colWidths=[2.2 * inch, 0.8 * inch, 4 * inch])
+    struct = analysis.get("story_structure", {})
+    story.append(Paragraph(struct.get("detection_type", "Story Structure"), styles["SectionHeading"]))
+    if struct.get("detection_note"):
+        story.append(Paragraph(struct["detection_note"], styles["Caveat"]))
+    story.append(Spacer(1, 6))
+    beat_rows = [["Story Beat", "Scene #", "Method", "Confidence"]]
+    for b in struct.get("predicted_beats", []):
+        beat_rows.append([b["beat"], str(b["scene_index"]), b["method"], b.get("confidence", "N/A")])
+    beat_table = Table(beat_rows, colWidths=[2.0 * inch, 0.7 * inch, 3.0 * inch, 0.8 * inch])
     beat_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), NAVY),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -286,10 +402,52 @@ def generate_report(analysis: dict, output_path: str):
         ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
         ("FONTSIZE", (0, 1), (-1, -1), 8.5),
         ("ALIGN", (1, 0), (1, -1), "CENTER"),
+        ("ALIGN", (3, 0), (3, -1), "CENTER"),
     ]))
     story.append(beat_table)
 
-    # ---- Viability detail ----
+    pacing = analysis.get("pacing")
+    if pacing and pacing.get("scene_count"):
+        story.append(Spacer(1, 14))
+        story.append(Paragraph("Pacing Analysis", styles["SectionHeading"]))
+        pacing_table = Table([
+            ["Avg. Scene Length", "Avg. Dialogue Density", "Shortest Scene", "Longest Scene"],
+            [f"{pacing['average_scene_length_lines']:.1f} lines",
+             f"{pacing['average_dialogue_density']:.0%}",
+             f"#{pacing['shortest_scene']['scene_index']} ({pacing['shortest_scene']['length_lines']} lines)",
+             f"#{pacing['longest_scene']['scene_index']} ({pacing['longest_scene']['length_lines']} lines)"],
+        ], colWidths=[1.7 * inch, 1.7 * inch, 1.7 * inch, 1.7 * inch])
+        pacing_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("FONTSIZE", (0, 1), (-1, -1), 8.5),
+        ]))
+        story.append(pacing_table)
+
+        outliers = pacing.get("pacing_outliers")
+        if outliers:
+            story.append(Spacer(1, 8))
+            story.append(Paragraph(
+                f"<b>Potential pacing concerns</b> ({len(outliers)} scene(s) with unusually "
+                f"high/low dialogue density):",
+                styles["Body"],
+            ))
+            for o in outliers[:5]:
+                story.append(Paragraph(
+                    f"\u2022 Scene {o['scene_index']} ({o['heading']}) -- unusually "
+                    f"{o['type']} dialogue density ({o['dialogue_density']:.0%})",
+                    styles["Caveat"],
+                ))
+        if pacing.get("pacing_note"):
+            story.append(Spacer(1, 4))
+            story.append(Paragraph(pacing["pacing_note"], styles["Caveat"]))
+
+    # ==== LAYER 3: PREDICTIVE ANALYSIS -- "what might happen commercially?" ====
+    _layer_divider(story, styles, "LAYER 3 -- PREDICTIVE ANALYSIS: What might happen commercially?")
+
     story.append(Paragraph("Viability Assessment", styles["SectionHeading"]))
     via = analysis["viability"]
     story.append(Paragraph(
@@ -300,6 +458,14 @@ def generate_report(analysis: dict, output_path: str):
     if via.get("caveat"):
         story.append(Spacer(1, 4))
         story.append(Paragraph(via["caveat"], styles["Caveat"]))
+
+    # ---- Standard limitations section, every report, not just a footnote ----
+    limitations = analysis.get("limitations")
+    if limitations:
+        story.append(Spacer(1, 18))
+        story.append(Paragraph("Automated Analysis Limitations", styles["SectionHeading"]))
+        for item in limitations:
+            story.append(Paragraph(f"\u2022 {item}", styles["Caveat"]))
 
     doc.build(story)
 

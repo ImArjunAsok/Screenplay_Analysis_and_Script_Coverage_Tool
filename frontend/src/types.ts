@@ -20,12 +20,48 @@ export interface SentimentArc {
   average_sentiment: number;
   sentiment_label: string;
   sentiment_label_caveat: string;
+  emotional_volatility: number;
+  emotional_volatility_label: string;
+  arc_interpretation: string;
   most_positive_scene: string;
   most_negative_scene: string;
   turning_point_count: number;
   model_source: string;
   scene_scores: number[];
   smoothed_scores: number[];
+}
+
+export interface CharacterArc {
+  character: string;
+  scene_appearances: number;
+  introduction_sentiment: number;
+  midpoint_sentiment: number;
+  final_sentiment: number;
+  arc_direction: string;
+  arc_strength: number;
+}
+
+export interface DialogueShare {
+  character: string;
+  dialogue_lines: number;
+  share_pct: number;
+}
+
+export interface PacingOutlier {
+  scene_index: number;
+  heading: string;
+  dialogue_density: number;
+  type: string;
+}
+
+export interface PacingAnalysis {
+  scene_count: number;
+  average_scene_length_lines: number;
+  shortest_scene: { scene_index: number; heading: string; length_lines: number };
+  longest_scene: { scene_index: number; heading: string; length_lines: number };
+  average_dialogue_density: number;
+  pacing_outliers: PacingOutlier[];
+  pacing_note: string;
 }
 
 export interface PredictedBeat {
@@ -81,7 +117,10 @@ export interface AnalysisResult {
   overview: OverviewStats;
   parser_notes: string[];
   characters: CharacterBreakdown;
+  dialogue_distribution: DialogueShare[];
+  pacing: PacingAnalysis;
   sentiment_arc: SentimentArc;
+  character_arcs: CharacterArc[];
   story_structure: StoryStructure;
   character_relationships: CharacterRelationships;
   predicted_genres: string[];
