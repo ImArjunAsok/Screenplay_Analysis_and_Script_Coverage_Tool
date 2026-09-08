@@ -1,8 +1,3 @@
-// Mirrors the JSON shape returned by backend/pipeline.py's
-// analyze_screenplay(). Keep these in sync if the backend response
-// shape changes -- there's no runtime schema validation, just this
-// compile-time contract.
-
 export interface OverviewStats {
   scene_count: number;
   character_count: number;

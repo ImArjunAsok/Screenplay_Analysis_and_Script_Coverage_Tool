@@ -11,8 +11,7 @@ const WIDTH = 760;
 const HEIGHT = 400;
 const PAD_LEFT = 42;
 const PAD_RIGHT = 12;
-const PAD_TOP = 145; // long rotated labels (e.g. "Dark Night of the Soul", 23 chars)
-                      // were getting clipped by the SVG edge at a smaller value -- verified visually
+const PAD_TOP = 145; 
 const PAD_BOTTOM = 34;
 const PLOT_W = WIDTH - PAD_LEFT - PAD_RIGHT;
 const PLOT_H = HEIGHT - PAD_TOP - PAD_BOTTOM;
@@ -38,13 +37,6 @@ export default function SentimentChart({ scores, smoothed, beats }: Props) {
   const rawPath = useMemo(() => buildPath(scores), [scores]);
   const smoothedPath = useMemo(() => buildPath(smoothed), [smoothed]);
 
-  // Same horizontal-nudge-with-connector-line approach as the PDF chart:
-  // beats landing on the same (or very close) scene index get their
-  // LABEL nudged sideways so the text doesn't overlap, while the
-  // vertical line always marks the true scene position. Tested against
-  // real data where two beats landed on the exact same scene -- a
-  // simple vertical stagger wasn't enough separation for long rotated
-  // labels, this was.
   const beatMarkers = useMemo(() => {
     if (n === 0) return [];
     const sorted = [...beats].sort((a, b) => a.scene_index - b.scene_index);

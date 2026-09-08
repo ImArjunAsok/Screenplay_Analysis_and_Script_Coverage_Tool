@@ -1,63 +1,3 @@
-"""
-Week 6 -- Genre classification
-----------------------------------
-Predicts a screenplay's genre(s) from its text and structure. Multi-label
-by design (a film can genuinely be both "Action" and "Comedy" -- IMSDB's
-own genre pages already reflect this, a title can appear on several).
-
-WHY TF-IDF + XGBoost, not a transformer: full screenplays are 20,000+
-words -- far past what a BERT-style model can read in one pass (~500
-words) without heavy chunking. And at current corpus sizes, a large
-neural model would overfit badly. TF-IDF (word-frequency features) +
-XGBoost is far more sample-efficient and is what your own proposal's
-tech stack already specifies for this stage.
-
-Features used, combined into one vector per screenplay:
-  - TF-IDF over all scene text (captures word-choice patterns -- e.g.
-    "blood"/"gun" cluster differently than "wedding"/"laugh")
-  - scene_count, character_count, dialogue_count (raw structural signals)
-  - dialogue_to_action_ratio (talk-heavy vs. description-heavy scripts
-    tend to skew by genre -- dramas/comedies are more dialogue-heavy,
-    action/horror often lean more on action description)
-
-WHY CROSS-VALIDATION, NOT A SINGLE TRAIN/TEST SPLIT: with a small corpus,
-one random split could easily land you a lucky (or unlucky) test set by
-chance. K-fold cross-validation trains and evaluates K times on
-different splits and averages the result -- a much more honest estimate
-of real performance at this data size, and standard practice when data
-is this limited.
-
-WHY SOME GENRES GET DROPPED: a genre with only 1-2 example scripts can't
-be meaningfully learned or evaluated -- the model would just be
-memorizing single examples, and any "accuracy" number would be
-meaningless. Genres below --min-examples (default 5) are excluded, and
-exactly which ones is printed and saved, not hidden. "Short" is always
-excluded regardless of count -- on IMSDB it means "this is a short film"
-(a format), not a narrative genre, so it doesn't belong in this list at all.
-
-WHY scale_pos_weight (added after the first real run on 1,117 scripts):
-rare genres (Family, War, Musical...) were scoring exactly 0 -- not
-because the model was confused, but because a classifier trained on,
-say, 35 positive examples out of 1,117 can get 97%+ raw accuracy by just
-always predicting "not this genre," so it has almost no pressure to ever
-say "yes." scale_pos_weight tells XGBoost "a missed positive costs N
-times more than a false positive," where N is that genre's actual
-imbalance ratio (negatives/positives) -- computed separately per genre,
-since Drama's imbalance (629/1117) is nothing like Western's (20/1117).
-This needs a per-genre model rather than one shared MultiOutputClassifier,
-since each genre needs its own weight.
-
-Run:
-    python nlp_pipeline/train_genre_classifier.py dataset/corpus_with_genres.jsonl
-    python nlp_pipeline/train_genre_classifier.py dataset/corpus_with_genres.jsonl --min-examples 8
-
-Outputs:
-    dataset/genre_classifier_report.json   -- per-genre metrics, dropped
-                                               genres, sample predictions
-    dataset/genre_model.joblib              -- the trained model + vectorizer
-                                               + label list, for later use
-"""
-
 import argparse
 import json
 import sys
@@ -74,9 +14,6 @@ from xgboost import XGBClassifier
 
 OUT_DIR = Path(__file__).parent.parent / "dataset"
 
-# Not a real narrative genre -- IMSDB uses "Short" to mean "this is a
-# short film" (a format/length tag), unrelated to story-type genres like
-# Drama or Horror. Excluded unconditionally, not subject to --min-examples.
 NON_GENRE_LABELS = {"Short"}
 
 

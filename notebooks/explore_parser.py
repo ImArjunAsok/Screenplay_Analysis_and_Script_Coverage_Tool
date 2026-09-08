@@ -1,8 +1,3 @@
-"""
-It will parse all .txt files in data/, print a summary table,
-and save a results JSON.
-"""
-
 import json
 import sys
 import os
@@ -17,7 +12,7 @@ OUTPUT_FILE = Path(__file__).parent.parent / "data" / "parsed_summary.json"
 parser = ScreenplayParser()
 results = []
 failed = []
-flagged = []  # parsed "successfully" but the output looks suspicious
+flagged = [] 
 
 scripts = list(DATA_DIR.glob("*.txt"))
 print(f"\nFound {len(scripts)} scripts in {DATA_DIR}\n")
@@ -28,9 +23,6 @@ for i, script_path in enumerate(sorted(scripts), 1):
     try:
         parsed = parser.parse_file(script_path)
 
-        # Flag parses that "succeeded" (no exception) but almost certainly
-        # missed most of the content -- these used to be invisible because
-        # the old parser just quietly returned 0s.
         flags = []
         if parsed.scene_count == 0:
             flags.append("NO SCENES FOUND")
@@ -83,7 +75,6 @@ if results:
     print(f"  Characters per script: {avg_chars:.1f}")
     print(f"  Dialogue lines       : {avg_dial:.1f}")
 
-# Save full summary
 summary = {"parsed": results, "flagged": flagged, "failed": failed}
 OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 OUTPUT_FILE.write_text(json.dumps(summary, indent=2))

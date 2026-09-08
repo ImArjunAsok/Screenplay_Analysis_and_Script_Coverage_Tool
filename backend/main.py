@@ -1,28 +1,3 @@
-"""
-Week 7 -- FastAPI backend
-------------------------------
-Exposes the analysis pipeline (pipeline.py) as a web API. This is the
-literal Week 7 deliverable: "connect all analysis modules through a
-FastAPI service" producing "an end-to-end API response containing all
-analysis outputs."
-
-Run:
-    uvicorn backend.main:app --reload
-
-Then either:
-  - open http://127.0.0.1:8000/docs for FastAPI's automatic interactive
-    API tester (upload a file right in the browser, no client code needed)
-  - or POST a file directly:
-        curl -X POST http://127.0.0.1:8000/analyze -F "file=@data/Black_Panther.txt"
-        curl -X POST http://127.0.0.1:8000/analyze -F "file=@data/Black_Panther.pdf"
-
-IMPORTANT: startup will take a while the FIRST time the server boots --
-this is when pipeline.py's models actually get loaded (spaCy, the
-sentiment model, genre model, viability model). That's expected and
-only happens once, not per-request; watch the console for "All models
-loaded. Pipeline ready." before sending requests.
-"""
-
 import shutil
 import tempfile
 from pathlib import Path
@@ -31,9 +6,6 @@ from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-# Importing this triggers pipeline.py's model loading -- deliberately
-# done at server startup (import time), not per-request. See pipeline.py
-# for why.
 from backend import pipeline
 from backend.report_generator import generate_report
 
@@ -45,9 +17,6 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Allows a frontend (Week 8) running on a different port/origin during
-# development to call this API from the browser. Tightened to specific
-# origins once a real frontend URL exists.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -83,11 +52,6 @@ async def analyze(file: UploadFile = File(...)):
             detail=f"Unsupported file type '{suffix}'. Supported: {', '.join(ALLOWED_EXTENSIONS)}.",
         )
 
-    # Write the upload to a temp file -- the parser and every downstream
-    # module work off a real file path, not an in-memory stream. The
-    # suffix MUST match the real upload (not hardcoded to .txt) since
-    # the parser decides how to read the file based on this extension --
-    # a PDF saved with a .txt suffix would be read as raw text and fail.
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         shutil.copyfileobj(file.file, tmp)
         tmp_path = tmp.name
@@ -147,26 +111,10 @@ async def report(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Report generation failed: {e}")
     finally:
         Path(tmp_path).unlink(missing_ok=True)
-        # Note: pdf_path is deliberately NOT deleted here -- FileResponse
-        # streams it back to the client after this function returns, so
-        # deleting it now would race against that. It's a temp file, so
-        # the OS will clean it up eventually; fine for now, worth
-        # revisiting with an explicit cleanup (e.g. BackgroundTask) if
-        # disk usage becomes a concern at higher traffic.
 
 
 @app.post("/report-from-analysis")
 async def report_from_analysis(analysis: dict = Body(...)):
-    """Generates a PDF from an analysis result the client ALREADY HAS --
-    e.g. the frontend, right after a successful /analyze call -- instead
-    of re-running the full pipeline (parsing, sentiment scoring,
-    genre/viability prediction) a second time just to build a PDF from
-    data that was already computed seconds earlier. This is the endpoint
-    the frontend should call for its "Download PDF Report" button; the
-    file-upload /report endpoint above still exists for standalone use
-    (e.g. going straight from a file to a PDF via curl or /docs, with no
-    prior /analyze call), but it does the full, slower pipeline run by
-    necessity, since it only has a file, not a result."""
     if not analysis.get("success"):
         raise HTTPException(status_code=422, detail="Cannot generate a report from a failed analysis.")
 

@@ -1,30 +1,3 @@
-"""
-Week 7 -- Backend pipeline orchestration
---------------------------------------------
-This is the core logic behind the FastAPI service: takes an uploaded
-screenplay file and runs it through every analysis module built across
-Weeks 1-6, combining everything into one response.
-
-WHY MODELS ARE LOADED HERE, AT IMPORT TIME, NOT INSIDE THE REQUEST
-HANDLER: loading a fine-tuned transformer or an XGBoost model takes real
-time (seconds). If that happened on every request, the API would be
-unusably slow and would reload the same files over and over for no
-reason. Loading everything ONCE when this module is first imported --
-which happens once, when the FastAPI server starts up -- means every
-actual request is fast, since it's just running inference on
-already-loaded models.
-
-WHY VIABILITY PREDICTION USES THE GENRE MODEL'S OWN PREDICTION, NOT REAL
-GENRE LABELS: during training, the viability model learned from REAL
-IMSDB genre tags. But a brand-new script someone uploads here has no
-such tag yet -- nothing external has classified it. So at prediction
-time, this pipeline runs the genre classifier FIRST, and feeds ITS
-prediction into the viability model as a stand-in for a real genre
-label. This is a legitimate, common pattern (one model's output feeding
-another), but it does mean a wrong genre prediction could nudge the
-viability prediction slightly -- worth knowing, not a hidden flaw.
-"""
-
 import sys
 from pathlib import Path
 
@@ -35,7 +8,7 @@ from scipy.sparse import hstack, csr_matrix
 
 sys.path.append(str(Path(__file__).parent.parent))
 from parser.screenplay_parser import ScreenplayParser
-from nlp_pipeline.sentiment_arc import build_sentiment_arc  # loads the sentiment model at import time
+from nlp_pipeline.sentiment_arc import build_sentiment_arc 
 from nlp_pipeline.story_structure import predict_beats
 from nlp_pipeline.character_graph import build_graph, compute_centrality
 from nlp_pipeline.classify_character_names import (
@@ -75,20 +48,9 @@ def _full_text(screenplay) -> str:
 
 
 def predict_genres(screenplay) -> dict:
-    """Returns both the final predicted genre list (backward compatible)
-    and each genre's raw confidence -- the model already computes these
-    probabilities internally via predict_proba(); this just exposes them
-    instead of throwing them away after the yes/no decision, the same
-    approach used in diagnose_genre_prediction.py."""
     text = _full_text(screenplay)
     tfidf = GENRE_VECTORIZER.transform([text])
     structural = np.array([_structural_features(screenplay)], dtype=float)
-    # NOTE: at training time structural features were normalized against
-    # the whole training set's mean/std. A single new script has no
-    # "set" to normalize against, so this uses the raw values -- a known
-    # simplification. Good enough for a first working version; a more
-    # careful version would persist the training set's mean/std and
-    # reuse them here.
     X = hstack([tfidf, csr_matrix(structural)])
 
     predicted = []
@@ -126,12 +88,6 @@ def predict_viability(screenplay, predicted_genres: list[str]) -> dict:
 
 
 def _emotional_volatility(scores: list[float]) -> tuple[float, str]:
-    """Standard deviation of per-scene sentiment scores -- how much the
-    story's tone swings scene to scene, independent of its average
-    direction. A script can have a near-neutral average while still
-    swinging wildly (comedy-drama tonal whiplash), or a strongly
-    negative average with almost no variation (a sustained bleak tone)
-    -- average sentiment alone can't distinguish these; volatility can."""
     if len(scores) < 2:
         return 0.0, "Insufficient data"
     mean = sum(scores) / len(scores)
@@ -147,8 +103,6 @@ def _emotional_volatility(scores: list[float]) -> tuple[float, str]:
 
 
 def _arc_interpretation(sentiment_label: str, volatility_label: str) -> str:
-    """A templated sentence from two numbers already computed -- not a
-    separate judgment, just spelling out what they mean together."""
     if volatility_label == "High":
         return (
             f"The screenplay shows high emotional volatility despite a "
@@ -162,13 +116,6 @@ def _arc_interpretation(sentiment_label: str, volatility_label: str) -> str:
 
 
 def _sentiment_label(score: float) -> str:
-    """Plain-language bucket for a raw -1..+1 sentiment score. Thresholds
-    are a reasonable, disclosed heuristic based on distance from zero --
-    NOT derived from genre-specific norms. Deliberately doesn't claim to
-    answer "is this normal for a comedy" -- that would need a separate
-    analysis comparing scores across genres in the training corpus,
-    which doesn't exist yet. See the caveat text shipped alongside this
-    in the API response."""
     direction = "Positive" if score > 0 else "Negative" if score < 0 else "Neutral"
     magnitude = abs(score)
     if magnitude < 0.05:
@@ -218,12 +165,6 @@ def analyze_characters(screenplay) -> dict:
 
 
 def analyze_relationships(screenplay) -> dict:
-    # Use the SAME filtered character list as everywhere else in the
-    # response (2+ speaking appearances) -- without this, the graph
-    # silently included one-line background characters (e.g. a single
-    # "EMPLOYEE" line) that the main character list correctly excludes,
-    # producing a node count that didn't match character_count anywhere
-    # else in the response.
     allowed = set(screenplay.characters)
     scenes = [
         {"dialogue": [{"character": d.character} for d in s.dialogue if d.character in allowed]}
@@ -235,18 +176,10 @@ def analyze_relationships(screenplay) -> dict:
     ranked = sorted(centrality.items(), key=lambda x: -x[1]["weighted_degree"])
     ranked_bridges = sorted(centrality.items(), key=lambda x: -x[1]["betweenness_centrality"])
 
-    # "Most scenes shared" is a reasonable proxy for narrative centrality,
-    # but it isn't guaranteed to be the actual protagonist -- an ensemble
-    # hub, mentor figure, or antagonist can also score highest. Labelled
-    # "likely" deliberately, not asserted as fact.
     likely_protagonist = ranked[0][0] if ranked else None
     top_bridge_name = ranked_bridges[0][0] if ranked_bridges else None
     top_bridge_score = ranked_bridges[0][1]["betweenness_centrality"] if ranked_bridges else None
 
-    # A plain-English sentence built directly from the numbers above --
-    # not a separate judgment, just a templated readout of real data, so
-    # a non-technical reader doesn't have to interpret a raw betweenness
-    # score themselves.
     network_interpretation = None
     if top_bridge_name and top_bridge_score is not None:
         if top_bridge_score >= 0.15:
@@ -273,13 +206,6 @@ def analyze_relationships(screenplay) -> dict:
 
 
 def _beat_confidence(method: str) -> str:
-    """Maps the beat prediction method to a plain confidence label.
-    Deliberately just two real tiers, not three -- the system only ever
-    does one of two things: finds a real signal in the sentiment arc
-    (sentiment-refined) or falls back to a pure position guess
-    (position-only, for any reason). Inventing a third "medium" tier
-    with no underlying distinction to justify it would be less honest
-    than this simpler mapping, not more."""
     return "High" if method.startswith("sentiment-refined") else "Low"
 
 
@@ -299,13 +225,6 @@ STANDARD_LIMITATIONS = [
 
 
 def _pacing_analysis(screenplay) -> dict:
-    """Per-scene length and dialogue density, using data the parser
-    already computes per scene (action_lines, dialogue) -- just not
-    previously surfaced. 'Length' here is a line-count proxy, not actual
-    screen time, which would need page/minute estimation this project
-    doesn't do. Outlier scenes are flagged using a simple, disclosed
-    z-score threshold against the script's own average -- not a
-    validated pacing model."""
     scene_stats = []
     for i, scene in enumerate(screenplay.scenes):
         action_lines = len(scene.action_lines)
@@ -380,14 +299,6 @@ def _dialogue_distribution(screenplay, real_names: list[str]) -> list[dict]:
 
 
 def _character_arcs(screenplay, sentiment: dict, character_names: list[str]) -> list[dict]:
-    """Tracks each character's emotional trajectory across the scenes
-    they speak in -- combines the sentiment model (Week 3) with the
-    parser's per-scene dialogue attribution, a combination neither alone
-    could show. Splits scene appearances into three even chunks
-    (introduction / midpoint / final act) and compares average
-    sentiment across them. Needs at least 3 scene appearances to say
-    anything meaningful about a trajectory -- fewer than that, skipped
-    rather than reporting a noisy two-point "arc"."""
     scene_sentiment = {a["scene_index"]: a["sentiment_score"] for a in sentiment["arc"]}
 
     arcs = []
@@ -433,10 +344,6 @@ def _character_arcs(screenplay, sentiment: dict, character_names: list[str]) -> 
 
 
 def analyze_screenplay(file_path: str, title_override: str = None) -> dict:
-    """The main entry point: parse a script and run the full analysis
-    pipeline, returning one combined result. title_override is used by
-    the API layer to pass through the ORIGINAL uploaded filename, since
-    file_path itself is usually a randomly-named temp file on disk."""
     parser = ScreenplayParser()
     screenplay = parser.parse_file(file_path)
     if title_override:
@@ -463,9 +370,6 @@ def analyze_screenplay(file_path: str, title_override: str = None) -> dict:
 
     pacing = _pacing_analysis(screenplay)
     dialogue_distribution = _dialogue_distribution(screenplay, characters["likely_real_names"])
-    # Arcs computed for the same characters already shown in the network
-    # table -- keeps the report focused and consistent rather than
-    # dumping an arc for every minor character.
     arc_character_names = [c["name"] for c in relationships["most_central_characters"]]
     character_arcs = _character_arcs(screenplay, sentiment, arc_character_names)
 
@@ -492,8 +396,6 @@ def analyze_screenplay(file_path: str, title_override: str = None) -> dict:
             "most_negative_scene": sentiment["statistics"]["most_negative_scene"],
             "turning_point_count": sentiment["statistics"]["turning_point_count"],
             "model_source": sentiment["model_source"],
-            # Per-scene data, needed to actually DRAW the arc (e.g. in the
-            # PDF report) -- the fields above are just a summary of this.
             "scene_scores": scene_scores,
             "smoothed_scores": sentiment["smoothed_arc"],
         },

@@ -1,25 +1,3 @@
-"""
-Week 4 -- Evaluate predicted beats against manual annotations
-------------------------------------------------------------------
-Takes the CSV template from story_structure.py --export-template, AFTER
-you've filled in the "actual_scene_index" column by reading the real
-script, and measures how close the predictions were.
-
-This is the "comparison of predicted beats against manual annotations"
-evidence your timeline asks for.
-
-Error is reported two ways:
-  - scenes off       : simple, easy to read, but not comparable across
-                        scripts of very different lengths
-  - % of runtime off  : (scenes off / scene_count) -- THIS is the number
-                        to report and compare across scripts, since being
-                        5 scenes off in a 50-scene script is a much bigger
-                        miss than 5 scenes off in a 300-scene script
-
-Run (after filling in actual_scene_index by hand):
-    python nlp_pipeline/evaluate_beats.py Black_Panther_beats_template.csv
-"""
-
 import csv
 import sys
 from pathlib import Path
@@ -44,9 +22,6 @@ def main():
             print(f"\n{path.name}: no beats annotated yet -- fill in actual_scene_index first.")
             continue
 
-        # We don't know scene_count directly from the CSV, so estimate it
-        # from the largest scene index referenced (predicted or actual) --
-        # good enough for computing % of runtime.
         all_indices = [int(r["predicted_scene_index"]) for r in rows] + \
                       [int(r["actual_scene_index"]) for r in annotated]
         scene_count_estimate = max(all_indices) + 1

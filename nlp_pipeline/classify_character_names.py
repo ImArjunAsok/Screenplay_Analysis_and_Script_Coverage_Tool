@@ -1,38 +1,3 @@
-"""
-Character-name cleanup: real names vs. generic role labels
-------------------------------------------------------------
-FIRST VERSION OF THIS SCRIPT USED ISOLATED-WORD POS TAGGING AND IT DIDN'T
-WORK WELL ENOUGH -- keeping this note because it's a real finding, not
-hiding the dead end. Tagging a character name by itself, with no
-sentence context ("Sykes" -> tagged NOUN, "Secretary" -> tagged PROPN),
-turned out to be close to a coin flip on real script data: several real
-surnames (Sykes, Watson, O'Neal, Minkler) got miscategorized as role
-labels, while some genuine role labels (Secretary, Human Cop) got kept
-as names. Verified directly against Alien Nation's real character list
-before rejecting this approach.
-
-CURRENT APPROACH: reuse the in-context NER check from character_ner.py.
-If a cue name matches a PERSON entity spaCy found while reading the
-actual action-line prose (i.e. a real sentence, not an isolated word),
-that's a far stronger signal -- real sentence context is what NER
-actually needs to work well, per the earlier ALL-CAPS finding.
-
-This still isn't perfect: characters who ONLY ever appear in a speaking
-cue and are never named in action-line prose (common for minor
-characters) won't get an NER match either way, real name or not. For
-those, this script falls back to the (weaker) POS + role-word check,
-and flags them as lower-confidence so they're easy to spot-check rather
-than silently trusted.
-
-Run:
-    python nlp_pipeline/classify_character_names.py
-
-Reads dataset/corpus.jsonl, writes:
-    dataset/character_classification.json
-    dataset/corpus_clean_characters.jsonl   -- use this, not corpus.jsonl,
-                                                for Week 5 onward
-"""
-
 import json
 import re
 import sys

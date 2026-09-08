@@ -1,19 +1,3 @@
-"""
-Week 3 -- Sentiment arc visualization
-----------------------------------------
-Plots the scene-by-scene emotional arc produced by sentiment_arc.py:
-raw scores, the smoothed curve, and marked turning points. This is the
-"sentiment visualisations" evidence for Week 3.
-
-Run (after sentiment_arc.py has produced a *_sentiment_arc.json file):
-    python nlp_pipeline/plot_sentiment_arc.py Black_Panther_sentiment_arc.json
-
-Or on several at once, to eyeball shapes across scripts:
-    python nlp_pipeline/plot_sentiment_arc.py *_sentiment_arc.json
-
-Saves a PNG next to each input JSON.
-"""
-
 import json
 import sys
 from pathlib import Path
@@ -34,11 +18,9 @@ def plot_arc(json_path: Path):
     ax.plot(x, smoothed, color="#1f6feb", linewidth=2.5, label="smoothed arc (window=5)")
     ax.axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.5)
 
-    # Mark turning points
     for tp in data["turning_points"]:
         ax.axvline(tp["scene_index"], color="#e05252", alpha=0.25, linewidth=1)
 
-    # Mark the darkest and lightest moments
     stats = data["statistics"]
     ax.annotate(
         "darkest moment",

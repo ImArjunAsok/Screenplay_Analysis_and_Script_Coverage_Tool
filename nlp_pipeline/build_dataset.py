@@ -1,32 +1,3 @@
-"""
-Dataset builder
--------------------------
-Parses every .txt screenplay in data/, sorts each into one of three tiers
-using the same quality signals notebooks/explore_parser.py surfaces, and
-writes out a consolidated corpus ready for the NLP pipeline -- this is the
-"cleaned IMSDB dataset" deliverable for Week 2.
-
-Tiers:
-  clean    - no flags at all. Use freely.
-  review   - flagged (used a fallback, e.g. indentation or bare-heading),
-             but scene_count is high enough (>=20) that the output is very
-             likely fine. Included in the corpus, but marked so you can
-             spot-check a sample before trusting it blindly.
-  excluded - zero scenes, non-standard format, or so few scenes relative to
-             dialogue that most headings were clearly missed. NOT included
-             in corpus.jsonl. Logged with a reason instead, so you have a
-             record for the dissertation's data-quality section rather than
-             just silently dropping files.
-
-Run:
-    python nlp_pipeline/build_dataset.py
-
-Outputs (into dataset/):
-    corpus.jsonl      - one JSON object per included screenplay (clean + review)
-    excluded_log.csv   - file, title, reason(s), counts -- for everything left out
-    manifest.json       - summary counts
-"""
-
 import csv
 import json
 import sys
@@ -43,8 +14,6 @@ MANIFEST_FILE = OUT_DIR / "manifest.json"
 
 
 def classify(parsed) -> tuple[str, list[str]]:
-    """Returns (tier, reasons). Mirrors the flag logic in explore_parser.py
-    so the two tools never disagree about what counts as broken."""
     reasons = []
 
     if parsed.scene_count == 0:

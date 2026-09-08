@@ -1,28 +1,10 @@
-"""
-Week 8 -- Automated PDF report generation
-----------------------------------------------
-Takes the same combined analysis dict analyze_screenplay() produces and
-turns it into a polished PDF, styled like a real professional script
-coverage report (the industry-standard format a studio reader produces):
-a header summary, a recommendation verdict, character breakdown,
-sentiment/structure summary, and a genre + viability assessment.
-
-WHY THIS SHAPE, NOT JUST A DUMP OF THE JSON: a real coverage report leads
-with a verdict a producer can act on in 10 seconds (Pass / Consider /
-Recommend), then supports it with detail. Dumping raw numbers first
-would bury the one thing a reader actually wants first.
-
-Run standalone (for testing without the API):
-    python backend/report_generator.py <analysis.json> <output.pdf>
-"""
-
 import io
 import json
 import sys
 from pathlib import Path
 
 import matplotlib
-matplotlib.use("Agg")  # non-interactive backend -- required for server-side PDF generation
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from reportlab.lib import colors
@@ -41,13 +23,6 @@ RED = colors.HexColor("#F4CCCC")
 
 
 def _build_sentiment_chart(analysis: dict):
-    """Draws the sentiment arc (raw + smoothed) with every predicted story
-    beat marked at its actual scene position. Labels for beats that land
-    close together (e.g. All Is Lost and Dark Night of the Soul sometimes
-    land on the exact same scene -- a known limitation, not hidden here)
-    are staggered onto alternating height tiers so they don't overlap,
-    while the vertical line always marks the TRUE scene position
-    regardless of which tier the label text sits at."""
     sent = analysis.get("sentiment_arc", {})
     scores = sent.get("scene_scores")
     smoothed = sent.get("smoothed_scores")
@@ -79,8 +54,6 @@ def _build_sentiment_chart(analysis: dict):
         ax.axvline(idx, color="#a33d2e", alpha=0.3, linewidth=1)
         label_x = idx + cluster_step * nudge
         if cluster_step > 0:
-            # Thin connector so it's clear this label's TRUE position is
-            # the vertical line, not wherever the text ended up nudged to
             ax.plot([idx, label_x], [1.0, 1.03], transform=ax.get_xaxis_transform(),
                      color="#a33d2e", alpha=0.4, linewidth=0.6, clip_on=False)
         ax.annotate(
@@ -104,17 +77,6 @@ def _build_sentiment_chart(analysis: dict):
 
 
 def _recommendation(analysis: dict) -> tuple[str, colors.Color, str]:
-    """Derives a simple Pass/Consider/Recommend verdict from the
-    viability prediction -- the single most useful thing a real coverage
-    report leads with. Thresholds are a reasonable, disclosed starting
-    point (rating out of 10), not a validated industry standard.
-
-    Terminology note: consistently says "predicted IMDb rating"
-    throughout, not "audience reception" -- the model was trained on
-    real IMDb ratings specifically (via OMDb), so that's the precise,
-    academically accurate term. A vaguer phrase invites the question
-    "is that the same thing the model predicts?" when it should be
-    obviously, exactly the same thing."""
     rating = analysis.get("viability", {}).get("predicted_imdb_rating")
     if rating is None:
         return "UNRATED", colors.grey, "No viability estimate was available for this script."
@@ -150,10 +112,6 @@ def build_styles():
 
 
 def _layer_divider(story, styles, label: str):
-    """Full-width colored bar marking one of the three analysis layers
-    (Descriptive / Structural / Predictive) -- per the reviewer's #18
-    suggestion, this makes the report's own logic visible: what's in the
-    script, vs. how it's built, vs. what might happen commercially."""
     bar = Table([[Paragraph(label, styles["LayerHeading"])]], colWidths=[6.5 * inch])
     bar.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), NAVY),
@@ -176,12 +134,10 @@ def generate_report(analysis: dict, output_path: str):
                              leftMargin=0.75 * inch, rightMargin=0.75 * inch)
     story = []
 
-    # ---- Header ----
     story.append(Paragraph(analysis["title"], styles["ReportTitle"]))
     story.append(Paragraph("Automated Script Coverage Report", styles["Body"]))
     story.append(Spacer(1, 12))
 
-    # ---- Recommendation verdict (leads the report, as a real one would) ----
     verdict, verdict_color, verdict_text = _recommendation(analysis)
     verdict_table = Table(
         [[Paragraph(f"<b>{verdict}</b>", ParagraphStyle("V", fontSize=15, textColor=NAVY, leading=17)),
@@ -204,7 +160,6 @@ def generate_report(analysis: dict, output_path: str):
         styles["Caveat"],
     ))
 
-    # ---- Overview ----
     story.append(Paragraph("Overview", styles["SectionHeading"]))
     ov = analysis["overview"]
     overview_table = Table([
@@ -247,7 +202,6 @@ def generate_report(analysis: dict, output_path: str):
         story.append(Spacer(1, 4))
         story.append(conf_table)
 
-    # ==== LAYER 1: DESCRIPTIVE ANALYSIS -- "what is in the screenplay?" ====
     _layer_divider(story, styles, "LAYER 1 -- DESCRIPTIVE ANALYSIS: What is in the screenplay?")
 
     story.append(Paragraph("Character Breakdown", styles["SectionHeading"]))
@@ -260,9 +214,6 @@ def generate_report(analysis: dict, output_path: str):
         styles["Body"],
     ))
     if chars["likely_real_names"]:
-        # Show ALL identified characters -- previously capped at 15, which
-        # silently disagreed with the stated count just above it and could
-        # make a reader think the system missed characters it actually found.
         story.append(Paragraph(", ".join(chars["likely_real_names"]), styles["Body"]))
 
     rel = analysis["character_relationships"]
@@ -348,7 +299,6 @@ def generate_report(analysis: dict, output_path: str):
         ]))
         story.append(arc_table)
 
-    # ==== LAYER 2: STRUCTURAL ANALYSIS -- "how is it constructed?" ====
     _layer_divider(story, styles, "LAYER 2 -- STRUCTURAL ANALYSIS: How is the screenplay constructed?")
 
     story.append(Paragraph("Emotional Arc", styles["SectionHeading"]))
@@ -378,7 +328,7 @@ def generate_report(analysis: dict, output_path: str):
     if chart_buf:
         story.append(Spacer(1, 10))
         chart_width = 6.4 * inch
-        chart_height = chart_width * (4.2 / 9)  # matches the figsize aspect ratio
+        chart_height = chart_width * (4.2 / 9)
         story.append(Image(chart_buf, width=chart_width, height=chart_height))
         story.append(Paragraph(
             "Red vertical lines mark each predicted story beat at its scene position -- "
@@ -445,7 +395,6 @@ def generate_report(analysis: dict, output_path: str):
             story.append(Spacer(1, 4))
             story.append(Paragraph(pacing["pacing_note"], styles["Caveat"]))
 
-    # ==== LAYER 3: PREDICTIVE ANALYSIS -- "what might happen commercially?" ====
     _layer_divider(story, styles, "LAYER 3 -- PREDICTIVE ANALYSIS: What might happen commercially?")
 
     story.append(Paragraph("Viability Assessment", styles["SectionHeading"]))
@@ -459,7 +408,6 @@ def generate_report(analysis: dict, output_path: str):
         story.append(Spacer(1, 4))
         story.append(Paragraph(via["caveat"], styles["Caveat"]))
 
-    # ---- Standard limitations section, every report, not just a footnote ----
     limitations = analysis.get("limitations")
     if limitations:
         story.append(Spacer(1, 18))

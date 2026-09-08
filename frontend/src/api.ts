@@ -46,12 +46,6 @@ export async function analyzeScreenplay(
 }
 
 export async function downloadReport(analysis: AnalysisResult): Promise<void> {
-  // Sends the analysis we ALREADY HAVE (from the earlier /analyze call)
-  // instead of re-uploading the file, which used to make the backend
-  // re-run the entire pipeline -- parsing, sentiment scoring, genre and
-  // viability prediction -- a second time just to build a PDF from data
-  // that was already computed. This is why "Download PDF" used to feel
-  // as slow as the original analysis; it's now just formatting.
   let response: Response;
   try {
     response = await fetch(`${API_BASE}/report-from-analysis`, {

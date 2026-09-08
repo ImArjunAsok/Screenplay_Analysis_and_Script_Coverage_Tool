@@ -21,7 +21,6 @@
   letter-spacing: -0.01em;
 }
 
-/* ---- Upload zone ---- */
 
 .upload-zone {
   border: 2px dashed var(--paper-line);
@@ -87,7 +86,6 @@
   flex-wrap: wrap;
 }
 
-/* ---- Error ---- */
 
 .error-box {
   border: 2px solid var(--ribbon-red);
@@ -99,7 +97,6 @@
   margin-top: 20px;
 }
 
-/* ---- Verdict stamp: the signature element ---- */
 
 .verdict-wrap {
   display: flex;

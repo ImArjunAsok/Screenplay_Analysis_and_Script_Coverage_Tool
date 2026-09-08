@@ -1,38 +1,3 @@
-"""
-Week 6 (prep) -- Fetch genre labels from IMSDB
-----------------------------------------------------
-Genre classification needs labels to train against, and your scraped
-screenplay text doesn't carry genre info on its own. Good news: you
-don't need an external API for this -- IMSDB already tags every script,
-right on its own genre listing pages (imsdb.com/genre/Action,
-imsdb.com/genre/Drama, etc). A title can appear on more than one genre
-page (e.g. an "action comedy" appears on both), which is realistic --
-most real films have more than one genre, so this naturally supports
-multi-label classification rather than forcing one genre per film.
-
-This is a SEPARATE, additive script -- it doesn't touch or need your
-existing scraper. It builds its own title -> [genres] lookup, then joins
-it onto your corpus by title.
-
-Run:
-    python nlp_pipeline/fetch_genre_labels.py
-    python nlp_pipeline/fetch_genre_labels.py --join dataset/corpus_clean_characters.jsonl
-
-First run (no --join) just builds and saves the genre lookup table --
-worth doing once and inspecting before joining it onto your corpus, in
-case IMSDB's title formatting doesn't exactly match your scraped
-filenames (common gotcha: "Abyss, The" vs "The Abyss" -- IMSDB
-consistently uses the comma-suffix style, so if your own scraper's
-filenames came from IMSDB too, they should already match).
-
-Outputs:
-    dataset/genre_labels.json          -- title -> [genres]
-    dataset/corpus_with_genres.jsonl   -- only written with --join; your
-                                           corpus with a "genres" field
-                                           added to each screenplay
-                                           (empty list if no match found)
-"""
-
 import argparse
 import json
 import re
@@ -56,8 +21,6 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (research script for MSc dissertation)"}
 
 
 def normalize_title(title: str) -> str:
-    """Loose normalization for matching IMSDB titles against your own
-    scraped filenames -- lowercase, strip punctuation, collapse spaces."""
     t = title.lower()
     t = re.sub(r"[^a-z0-9 ]", " ", t)
     t = re.sub(r"\s+", " ", t).strip()
@@ -65,7 +28,6 @@ def normalize_title(title: str) -> str:
 
 
 def fetch_genre_page(genre: str) -> list[str]:
-    """Returns the list of movie titles on this genre's IMSDB page."""
     url = f"https://imsdb.com/genre/{genre}"
     resp = requests.get(url, headers=HEADERS, timeout=15)
     resp.raise_for_status()
@@ -94,7 +56,7 @@ def build_genre_labels() -> dict[str, list[str]]:
             labels.setdefault(t, [])
             if genre not in labels[t]:
                 labels[t].append(genre)
-        time.sleep(1)  # be polite to IMSDB's server
+        time.sleep(1)
     return labels
 
 

@@ -1,43 +1,3 @@
-"""
-Week 6 (part 2) -- Viability prediction
---------------------------------------------
-Predicts a screenplay's IMDb rating from its text and structure -- the
-same TF-IDF + structural feature approach as the genre classifier
-(train_genre_classifier.py), but regression instead of classification,
-since rating is a continuous number (0-10), not a category.
-
-WHY A REGRESSOR, NOT A "HIT/FLOP" CLASSIFIER: turning rating into a
-binary label would need an arbitrary cutoff (is 6.5 a "hit"? 7.0?) that
-throws away information. Predicting the actual number is more honest
-about what the model does and doesn't know, and you can always bucket
-the output afterward if a simple category is more useful for the report.
-
-WHY A NAIVE BASELINE IS INCLUDED: "mean absolute error of 0.8" means
-nothing on its own. This script also reports the error you'd get by
-just always guessing the average rating, with no model at all -- the
-real model is only meaningfully useful if it beats that.
-
-GENRE-AS-A-FEATURE EXPERIMENT: by default, this now runs TWO versions
-back to back -- text+structure only, and text+structure+genre -- and
-reports both, so the effect of adding genre is a direct, honest
-before/after rather than something you have to run twice yourself and
-compare by hand. Uses the REAL genre labels from IMSDB (already in the
-data), not the genre classifier's predictions -- that isolates "does
-genre information help predict rating" from "how accurate is my genre
-classifier," which are two different questions. Use --no-genre-compare
-to skip this and just run the base version.
-
-Run:
-    python nlp_pipeline/train_viability_model.py dataset/corpus_with_viability.jsonl
-    python nlp_pipeline/train_viability_model.py dataset/corpus_with_viability.jsonl --no-genre-compare
-
-Outputs:
-    dataset/viability_report.json    -- CV metrics (both versions),
-                                         baseline comparison, sample predictions
-    dataset/viability_model.joblib    -- trained model + vectorizer
-                                         (the genre-augmented version, if run)
-"""
-
 import argparse
 import json
 import sys
@@ -68,10 +28,6 @@ def load_data(corpus_path: str):
 
 def extract_features(screenplays: list[dict], vectorizer: TfidfVectorizer = None, fit=True,
                       include_genre: bool = False, mlb: MultiLabelBinarizer = None):
-    """Same TF-IDF + structural approach as train_genre_classifier.py's
-    extract_features -- duplicated here (not imported) so this script
-    stays runnable on its own. If include_genre=True, also appends a
-    multi-hot encoded genre vector (real IMSDB labels, not predictions)."""
     texts, structural, genre_lists = [], [], []
     for sp in screenplays:
         scene_texts = [s.get("full_text", "") for s in sp["scenes"]]
@@ -113,10 +69,6 @@ def extract_features(screenplays: list[dict], vectorizer: TfidfVectorizer = None
 
 
 def run_cross_validation(X, y, folds: int, label: str) -> dict:
-    """Runs K-fold CV and returns the metrics dict. Pulled out as its own
-    function so the with-genre and without-genre runs use IDENTICAL
-    logic -- the only thing that can differ between them is the feature
-    matrix X itself, which keeps the comparison honest."""
     kf = KFold(n_splits=folds, shuffle=True, random_state=42)
     fold_mae, fold_rmse, fold_r2 = [], [], []
 
@@ -190,8 +142,6 @@ def main():
               f"({'helps' if genre_effect > 0 else 'no meaningful help' if abs(genre_effect) < 0.01 else 'hurts slightly'})")
     print(f"{'='*60}")
 
-    # Final model -- use the genre-augmented version if we ran it (best
-    # available), otherwise the base version
     use_genre_final = genre_metrics is not None
     X_final = X_genre if use_genre_final else X_base
     final_model = XGBRegressor(n_estimators=150, max_depth=4, learning_rate=0.08, random_state=42)

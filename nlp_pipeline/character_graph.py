@@ -1,51 +1,3 @@
-"""
-Week 5 -- Character relationship graph + centrality analysis
-------------------------------------------------------------------
-Builds a character interaction network for each screenplay: two
-characters are connected if they appear together (both speak) in the
-same scene. This is the standard, simple approach for character
-networks in narrative analysis -- "appearing in the same scene" is used
-as a proxy for "these two characters interact."
-
-Edge weight = number of scenes the pair shares. A high weight means
-these two characters share a lot of screen time together, not
-necessarily that they like each other -- this graph captures presence,
-not sentiment (Week 3's sentiment arc is a separate signal you could
-layer on top of this later, but isn't combined here).
-
-Then runs standard graph-theory centrality metrics using NetworkX:
-  - degree centrality      : how many OTHER characters this one connects
-                              to, directly -- a rough "how central to the
-                              cast" measure
-  - weighted degree        : same, but counting shared scenes, not just
-                              distinct connections -- distinguishes "knows
-                              everyone briefly" from "spends a lot of
-                              time with a few people"
-  - betweenness centrality : how often this character sits on the
-                              shortest path between two OTHER characters
-                              -- high value = a "bridge" connecting
-                              different parts of the cast (e.g. a
-                              character who links two otherwise-separate
-                              character groups)
-  - closeness centrality   : how few steps, on average, it takes to
-                              reach every other character from this one
-                              -- high value = "central to the whole cast"
-
-NOTE: uses the RAW cue-derived character list (corpus.jsonl), not the
-cleaned one -- so some nodes may currently be generic role labels
-("PILOT", "DOCTOR") rather than real characters. Swap in
-corpus_clean_characters.jsonl once that cleanup step has been run, no
-code changes needed, same field names.
-
-Run:
-    python nlp_pipeline/character_graph.py data/Black_Panther.txt
-    python nlp_pipeline/character_graph.py --corpus dataset/corpus.jsonl --title "Black Panther"
-
-Outputs:
-    <title>_character_graph.json    -- full graph data + centrality scores
-    <title>_character_graph.png     -- the visualisation
-"""
-
 import argparse
 import json
 import sys
@@ -69,8 +21,6 @@ def build_graph(scenes: list[dict], min_shared_scenes: int = 1) -> nx.Graph:
         speakers = sorted({d["character"] for d in scene["dialogue"]})
         for char in speakers:
             G.add_node(char)
-        # Every pair of characters who both speak in this scene gets an
-        # edge (or an extra +1 to an existing edge's weight).
         for i in range(len(speakers)):
             for j in range(i + 1, len(speakers)):
                 pair = (speakers[i], speakers[j])
@@ -90,9 +40,6 @@ def compute_centrality(G: nx.Graph) -> dict:
     degree = dict(G.degree())
     weighted_degree = dict(G.degree(weight="weight"))
     betweenness = nx.betweenness_centrality(G, weight="weight")
-    # closeness_centrality needs a connected graph to be meaningful per
-    # component; networkx handles disconnected graphs gracefully by
-    # computing within each component, which is fine for our purposes.
     closeness = nx.closeness_centrality(G)
 
     results = {}
@@ -121,11 +68,6 @@ def plot_graph(G: nx.Graph, centrality: dict, title: str, out_path: Path):
     weights = [G[u][v]["weight"] for u, v in G.edges()]
     min_w = min(weights) if weights else 1
     max_w = max(weights) if weights else 1
-    # Stretch across the ACTUAL range present, not just 0-to-max. If most
-    # edges cluster at weight 1-2 and only a couple outliers hit 5, scaling
-    # against max_w alone compresses everything typical into a narrow,
-    # visually indistinguishable band -- min-max stretching uses the full
-    # line-width range for the range of weights that actually occurs.
     if max_w == min_w:
         edge_widths = [1.5 for _ in weights]
     else:

@@ -1,40 +1,3 @@
-"""
-Week 6 (part 2) -- Fetch viability labels from OMDb
--------------------------------------------------------
-Genre labels came free from IMSDB itself. Viability doesn't -- nothing
-in your scraped script text or IMSDB's pages tells you whether a film
-was well-received or made money. This script gets that from OMDb (the
-Open Movie Database), a free external API, by looking up each script's
-title.
-
-WHY IMDb RATING, NOT BOX OFFICE, AS THE MAIN TARGET: box office numbers
-are missing for a large share of any real script corpus -- indie films,
-older films, and especially unproduced spec scripts (scraped scripts
-that were never actually made into a film) simply have no box office
-figure to report, even when they DO have a normal IMDb page with a
-rating. Building the main model around a mostly-missing number would be
-a weak foundation. IMDb rating is far more consistently available for
-anything with an IMDb entry at all, so that's the primary target here;
-box office is kept as a secondary feature where it happens to exist.
-
-YOU NEED YOUR OWN FREE API KEY: sign up at https://www.omdbapi.com/apikey.aspx
-(free tier, near-instant email). The free tier is capped at 1,000
-requests/day -- with 1,116 scripts, this script WILL need to be re-run
-across 2 days, or you can request a higher-volume free academic key. It
-saves progress after every single request, so re-running it after
-hitting the daily cap just picks up where it left off -- nothing is lost.
-
-Run:
-    python nlp_pipeline/fetch_viability_labels.py --api-key YOUR_KEY_HERE dataset/corpus_with_genres.jsonl
-    python nlp_pipeline/fetch_viability_labels.py --api-key YOUR_KEY_HERE dataset/corpus_with_genres.jsonl --join
-
-Outputs:
-    dataset/viability_labels.json         -- title -> OMDb data (saved
-                                              incrementally, safe to
-                                              interrupt and resume)
-    dataset/corpus_with_viability.jsonl    -- only written with --join
-"""
-
 import argparse
 import json
 import re
@@ -50,8 +13,6 @@ OMDB_URL = "http://www.omdbapi.com/"
 
 
 def clean_number(value: str):
-    """OMDb returns numbers as strings like '$1,346,913,161' or '8.8' or
-    'N/A'. Strip formatting, return a float, or None if genuinely missing."""
     if not value or value == "N/A":
         return None
     cleaned = re.sub(r"[^0-9.]", "", value)

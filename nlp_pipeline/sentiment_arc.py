@@ -1,40 +1,7 @@
-"""
-Sentiment Arc Module
---------------------
-Takes a parsed screenplay and scores each scene's emotional tone.
-
-Uses the fine-tuned RoBERTa model
-(models/roberta-sentiment-finetuned/) if it exists. If you haven't run
-train_sentiment_model.py yet, falls back to the original pretrained
-SST-2 placeholder model, with a clear warning. So this module keeps
-working at every stage, but you always know which model actually
-produced a given score.
-
-Two things changed from the Week-1 placeholder version, both discussed
-in review:
-
-1. Score is now P(positive) - P(negative), a genuine continuous value in
-   [-1, +1], instead of "confidence of whichever label won." A model
-   being 99% sure something is negative isn't the same as it being very
-   negative -- confidence measures certainty, not intensity. The
-   softmax difference is the standard way to get an actual continuous
-   signal out of a binary classifier.
-2. Long scenes are truncated by the tokenizer itself (subword-aware,
-   respects the model's real token budget) instead of a crude
-   text[:1000] character slice, which could cut mid-word and doesn't
-   actually correspond to the model's token limit.
-
-Run standalone:
-    python nlp_pipeline/sentiment_arc.py data/127_Hours.txt
-
-Output: JSON with per-scene sentiment scores + arc summary
-"""
-
 import json
 import sys
 from pathlib import Path
 
-# Add project root so we can import the parser
 sys.path.append(str(Path(__file__).parent.parent))
 from parser.screenplay_parser import ScreenplayParser
 
@@ -43,7 +10,7 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 FINE_TUNED_DIR = Path(__file__).parent.parent / "models" / "roberta-sentiment-finetuned"
 FALLBACK_MODEL = "distilbert-base-uncased-finetuned-sst-2-english"
-MAX_LENGTH = 256  # must match what train_sentiment_model.py trained with
+MAX_LENGTH = 256
 
 
 # ── Load model ───────────────────────────────────────────────────────────────
@@ -73,14 +40,8 @@ def load_model():
 TOKENIZER, MODEL, MODEL_SOURCE = load_model()
 
 
-# ── Scorer ───────────────────────────────────────────────────────────────────
 
 def score_scene(scene) -> float:
-    """
-    Returns a sentiment score from -1.0 (very negative) to +1.0 (very
-    positive): P(positive) - P(negative) from the model's own softmax
-    output, not the raw "confidence" of whichever label won.
-    """
     text = scene.full_text.strip()
     if not text:
         return 0.0
@@ -92,17 +53,12 @@ def score_scene(scene) -> float:
         logits = MODEL(**inputs).logits
     probs = torch.softmax(logits, dim=-1)[0]
 
-    # Both models used here follow the convention label 0 = negative,
-    # label 1 = positive (true for SST-2 and for Rotten Tomatoes).
     p_negative, p_positive = probs[0].item(), probs[1].item()
     score = p_positive - p_negative
     return round(score, 4)
 
 
 def build_sentiment_arc(screenplay) -> dict:
-    """
-    Scores every scene and returns the full arc as structured data.
-    """
     arc = []
 
     print(f"\nScoring {screenplay.scene_count} scenes for '{screenplay.title}' "
@@ -126,10 +82,8 @@ def build_sentiment_arc(screenplay) -> dict:
 
     print(f"  Done. All {screenplay.scene_count} scenes scored.")
 
-    # ── Arc statistics ────────────────────────────────────────────────────────
     scores = [s["sentiment_score"] for s in arc]
 
-    # Smooth the arc using a rolling average (window=5)
     smoothed = []
     window = 5
     for i in range(len(scores)):
@@ -137,8 +91,6 @@ def build_sentiment_arc(screenplay) -> dict:
         end = min(len(scores), i + window // 2 + 1)
         smoothed.append(round(sum(scores[start:end]) / (end - start), 4))
 
-    # Turning points: where the smoothed arc crosses from positive to
-    # negative or vice versa
     turning_points = []
     for i in range(1, len(smoothed)):
         if (smoothed[i - 1] >= 0 and smoothed[i] < 0) or \
@@ -198,7 +150,6 @@ def print_summary(arc_data: dict):
         print(f"    Scene {i:>3}: [{sign}{bar:<20}] {arc[i]:+.3f}")
 
 
-# ── CLI ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

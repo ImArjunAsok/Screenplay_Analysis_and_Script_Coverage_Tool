@@ -1,18 +1,3 @@
-"""
-Helper for manual beat annotation
--------------------------------------
-Prints every scene in a script with its index and heading, so you can
-look up "what scene number is this?" while reading the real screenplay
-and filling in actual_scene_index in a *_beats_template.csv.
-
-Run:
-    python nlp_pipeline/list_scenes.py data/A_Real_Pain.txt
-
-Tip: pipe it to a file and keep it open in a second tab/window while you
-annotate, or use --search to jump straight to a rough area:
-    python nlp_pipeline/list_scenes.py data/A_Real_Pain.txt --search "hotel"
-"""
-
 import argparse
 import sys
 from pathlib import Path

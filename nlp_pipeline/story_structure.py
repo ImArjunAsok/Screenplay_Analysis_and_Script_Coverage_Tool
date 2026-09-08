@@ -1,44 +1,3 @@
-"""
-Week 4 -- Story structure / beat prediction
-----------------------------------------------
-Predicts where a screenplay's major structural "beats" fall, using the
-widely-used Save the Cat 15-beat framework (Blake Snyder) -- each beat has
-a well-documented expected position as a percentage of the script's
-length (e.g. the inciting incident/Catalyst typically lands around 10%
-in, the Midpoint at 50%, the darkest moment/"All Is Lost" around 75%).
-
-Two prediction methods, and the script uses whichever is more informed:
-
-1. POSITION-ONLY (baseline): expected_percentage * scene_count. Works for
-   any parsed screenplay, no extra data needed.
-
-2. SENTIMENT-REFINED (better, when available): for beats that should
-   correspond to an emotional high or low (e.g. "All Is Lost" should be
-   near the story's darkest point), search the actual sentiment arc
-   (from Week 3's sentiment_arc.py output) within a window around the
-   expected position for a real local minimum/maximum/turning point, and
-   use that instead of the raw percentage guess. Falls back to the
-   position-only estimate if nothing clear is found nearby.
-
-This IS the classifier the Week 4 timeline milestone asks for -- "classifier"
-here means a rule-based position + signal model, not a trained neural
-network, because there's no existing labeled dataset of screenplay beats to
-train one on. That's a legitimate, common approach for this kind of
-structural annotation task, and it's explicitly evaluated against manual
-annotations (via evaluate_beats.py) rather than just asserted to work.
-
-Run:
-    python nlp_pipeline/story_structure.py data/Black_Panther.txt
-    python nlp_pipeline/story_structure.py data/Black_Panther.txt --arc Black_Panther_sentiment_arc.json
-    python nlp_pipeline/story_structure.py data/Black_Panther.txt --export-template
-
-Outputs:
-    <title>_beats_predicted.json   -- always
-    <title>_beats_template.csv     -- only with --export-template; this is
-                                       what you fill in by hand for
-                                       evaluate_beats.py
-"""
-
 import argparse
 import csv
 import json
@@ -48,11 +7,6 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from parser.screenplay_parser import ScreenplayParser
 
-# Save the Cat! 15-beat framework (Blake Snyder), expected position as a
-# fraction of total scene count. "signal" tells the sentiment-refinement
-# step what kind of thing to look for nearby: a local low, a local high,
-# or a turning point (sign change) in the smoothed arc. None = don't try
-# to refine this one, position estimate only.
 BEATS = [
     {"name": "Opening Image",        "position": 0.01, "signal": None,
      "description": "A snapshot of the story's starting world/tone."},
@@ -88,13 +42,6 @@ BEATS = [
 def refine_with_arc(expected_scene: int, signal: str, arc: list[float],
                      scene_count: int, turning_points: list[int],
                      window_frac: float = 0.06) -> tuple[int, str]:
-    """
-    Looks for a real signal (local low/high/turning point) in the smoothed
-    sentiment arc within a window around the expected position. Returns
-    (scene_index, method_note). Falls back to the raw position estimate
-    if nothing suitable is found nearby -- this is intentional: a weak or
-    absent signal shouldn't be forced into a false match.
-    """
     if signal is None or not arc:
         return expected_scene, "position-only"
 
@@ -119,9 +66,6 @@ def refine_with_arc(expected_scene: int, signal: str, arc: list[float],
         best_offset = window_scores.index(max(window_scores))
     best_scene = lo + best_offset
 
-    # Only trust the refinement if it's a genuinely distinct extremum, not
-    # just noise -- require it to differ from the expected-position score
-    # by a small minimum margin.
     if abs(window_scores[best_offset] - arc[expected_scene]) < 0.05:
         return expected_scene, "position-only (arc too flat nearby to refine)"
 
