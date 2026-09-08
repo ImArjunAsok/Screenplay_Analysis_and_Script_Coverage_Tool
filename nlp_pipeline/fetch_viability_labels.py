@@ -79,8 +79,6 @@ def main():
         else:
             print(f"  [{i}/{len(todo)}] {title:<40} NOT FOUND")
 
-        # Save after every single lookup -- if this gets interrupted
-        # (daily cap, network drop, anything), nothing already done is lost.
         LABELS_FILE.write_text(json.dumps(labels, indent=2))
         time.sleep(0.1)
 

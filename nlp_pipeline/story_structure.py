@@ -62,7 +62,7 @@ def refine_with_arc(expected_scene: int, signal: str, arc: list[float],
 
     if signal == "low":
         best_offset = window_scores.index(min(window_scores))
-    else:  # "high"
+    else:
         best_offset = window_scores.index(max(window_scores))
     best_scene = lo + best_offset
 

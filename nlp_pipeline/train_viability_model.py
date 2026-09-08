@@ -115,7 +115,6 @@ def main():
 
     y = np.array([sp["viability"]["imdb_rating"] for sp in screenplays])
 
-    # Naive baseline: always predict the mean rating, no model at all.
     baseline_mae = mean_absolute_error(y, [y.mean()] * len(y))
     print(f"\nNaive baseline MAE (always guess the average): {baseline_mae:.3f}")
 

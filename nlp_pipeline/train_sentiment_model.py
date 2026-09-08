@@ -72,8 +72,6 @@ def main():
     model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
 
     def tokenize(batch):
-        # Standard tokenizer truncation (proper subword-aware cutoff),
-        # not the crude character-slicing the placeholder model used.
         return tokenizer(batch["text"], truncation=True, padding="max_length", max_length=256)
 
     def prep(ds):
@@ -106,9 +104,7 @@ def main():
         model=model,
         args=training_args,
         train_dataset=tokenized_train,
-        eval_dataset=tokenized_val,   # RT validation throughout -- keeps
-                                       # "best model" selection comparable
-                                       # to earlier RT-only training runs
+        eval_dataset=tokenized_val,
         compute_metrics=compute_metrics,
     )
 
@@ -150,7 +146,7 @@ def main():
         "imdb_test_examples": len(imdb_test) if imdb_test is not None else None,
         "training_time_minutes": round(elapsed / 60, 2),
         "gpu_used": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "none (CPU)",
-        "epoch_log": trainer.state.log_history,   # per-epoch/step loss + eval metrics
+        "epoch_log": trainer.state.log_history,
         "final_rt_test_metrics": rt_test_metrics,
         "final_imdb_test_metrics": imdb_test_metrics,
     }

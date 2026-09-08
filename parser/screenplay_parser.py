@@ -273,7 +273,7 @@ class ScreenplayParser:
                             break
                         i += 1
                         continue
-                    if self._is_any_heading(next_stripped):  # new scene
+                    if self._is_any_heading(next_stripped):
                         break
 
                     inner_prev_blank = lines[i - 1].strip() == ""
@@ -297,7 +297,6 @@ class ScreenplayParser:
                     )
                 continue
 
-            # Action line
             if stripped and not PARENTHETICAL.match(stripped):
                 current_scene.action_lines.append(stripped)
 

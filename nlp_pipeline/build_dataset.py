@@ -79,7 +79,7 @@ def main():
             record = parsed.to_dict()
             record["file"] = script_path.name
             record["tier"] = tier
-            record["exclusion_reasons"] = reasons  # empty for "clean"
+            record["exclusion_reasons"] = reasons
             corpus_f.write(json.dumps(record) + "\n")
             print(f"  {tier.upper():<8} {parsed.title:<40} scenes={parsed.scene_count} chars={len(parsed.characters)} dialogue={parsed.dialogue_count}")
 

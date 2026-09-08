@@ -64,8 +64,6 @@ def extract_features(screenplays: list[dict], vectorizer: TfidfVectorizer = None
         tfidf = vectorizer.transform(texts)
 
     structural = np.array(structural, dtype=float)
-    # Normalize structural features roughly to TF-IDF's scale so they
-    # don't get drowned out or dominate purely from having larger raw numbers
     structural = (structural - structural.mean(axis=0)) / (structural.std(axis=0) + 1e-6)
 
     X = hstack([tfidf, csr_matrix(structural)])
@@ -73,10 +71,6 @@ def extract_features(screenplays: list[dict], vectorizer: TfidfVectorizer = None
 
 
 def compute_scale_pos_weight(y_col: np.ndarray) -> float:
-    """negatives / positives for this one genre column. E.g. Western with
-    20 positives out of 1117 -> weight ~54, meaning XGBoost treats missing
-    a real Western as ~54x worse than a false positive. Without this, the
-    model has almost no incentive to ever predict a rare genre at all."""
     positives = y_col.sum()
     negatives = len(y_col) - positives
     if positives == 0:
@@ -85,9 +79,6 @@ def compute_scale_pos_weight(y_col: np.ndarray) -> float:
 
 
 def fit_weighted_multilabel(X_train, y_train, **xgb_kwargs) -> list[XGBClassifier]:
-    """One XGBClassifier per genre column, each with its OWN
-    scale_pos_weight -- this is why we can't use MultiOutputClassifier,
-    which shares one fixed set of hyperparameters across every column."""
     models = []
     for i in range(y_train.shape[1]):
         col = y_train[:, i]
@@ -165,8 +156,6 @@ def main():
         print(f"    {g:<12} precision={m['precision']:.2f}  recall={m['recall']:.2f}  "
               f"f1={m['f1-score']:.2f}  support={int(m['support'])}")
 
-    # Train a final model on ALL data for actual future predictions, and
-    # show sample predictions on a handful of real screenplays
     xgb_kwargs = dict(n_estimators=100, max_depth=4, learning_rate=0.1,
                        eval_metric="logloss", random_state=42)
     final_models = fit_weighted_multilabel(X, y, **xgb_kwargs)

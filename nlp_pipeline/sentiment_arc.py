@@ -13,7 +13,6 @@ FALLBACK_MODEL = "distilbert-base-uncased-finetuned-sst-2-english"
 MAX_LENGTH = 256
 
 
-# ── Load model ───────────────────────────────────────────────────────────────
 
 def load_model():
     if FINE_TUNED_DIR.exists():
