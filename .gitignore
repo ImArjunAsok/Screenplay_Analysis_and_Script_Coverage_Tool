@@ -24,3 +24,5 @@ data
 models/
 
 dataset/
+
+.env
